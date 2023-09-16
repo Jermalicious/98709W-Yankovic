@@ -94,14 +94,13 @@ void opcontrol() {
 
 		
 		if (master.get_digital(DIGITAL_A)) {
-
 		left_armo = 95;
 		right_armo = 95;
 		}
 
 		if (master.get_digital(DIGITAL_B)) {
 			wings.set_value(HIGH);
-		}else {
+		} else {
 			wings.set_value(LOW);
 		}
 
