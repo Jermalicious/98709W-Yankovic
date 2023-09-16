@@ -105,6 +105,9 @@ void opcontrol() {
 			wings.set_value(LOW);
 		}
 
+
+		//LLLLLLLLLLLLLLLLLLL GGGGGGG"
+
 		pros::delay(20);
 	
 	}
