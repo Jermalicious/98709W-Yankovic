@@ -98,7 +98,8 @@ void opcontrol() {
 		right_armo = 95;
 		}
 
-		if (master.get_digital(DIGITAL_B)) {
+
+if (master.get_digital(DIGITAL_B)) { 
 			wings.set_value(HIGH);
 		} else {
 			wings.set_value(LOW);
