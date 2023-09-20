@@ -106,8 +106,6 @@ if (master.get_digital(DIGITAL_B)) {
 		}
 
 
-		//LLLLLLLLLLLLLLLLLLL GGGGGGG"
-
 		pros::delay(20);
 	
 	}
