@@ -78,9 +78,12 @@ void opcontrol() {
 	pros::Controller master(pros::E_CONTROLLER_MASTER);
 	// pros::Motor left_mtr(1);
 	// pros::Motor right_mtr(2);
-	pros::Motor left_armo(6);
+	pros::Motor left_armo(6,false);
 	pros::Motor right_armo(5,true);
 	pros::ADIDigitalOut wings (1, LOW);
+
+	pros::Motor_Group left_drive(); //input motor ports. negative port means reveresed
+	pros::Motor_Group right_drive();
 
 	while (true) {
 		pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
@@ -89,8 +92,8 @@ void opcontrol() {
 		// int left = master.get_analog(ANALOG_LEFT_Y);
 		// int right = master.get_analog(ANALOG_RIGHT_Y);
 
-		// left_mtr = left;
-		// right_mtr = right;
+		// left_drive = left;
+		// right_drive = right;
 
 		
 		if (master.get_digital(DIGITAL_A)) {
