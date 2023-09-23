@@ -1,4 +1,5 @@
 #include "main.h"
+#include "classesTesting.h"
 
 /**
  * A callback function for LLEMU's center button.
@@ -47,7 +48,7 @@ void disabled() {}
  */
 void competition_initialize() {}
 
-/**
+/*
  * Runs the user autonomous code. This function will be started in its own task
  * with the default priority and stack size whenever the robot is enabled via
  * the Field Management System or the VEX Competition Switch in the autonomous
@@ -75,16 +76,23 @@ void autonomous() {}
  */
 
 void opcontrol() {
-	pros::Controller master(pros::E_CONTROLLER_MASTER);
-	// pros::Motor left_mtr(1);
-	// pros::Motor right_mtr(2);
-	pros::Motor left_armo(6,false);
-	pros::Motor right_armo(5,true);
-	pros::ADIDigitalOut wings (1, LOW);
+
+	Testing test;
+
+	pros::Controller controller(pros::E_CONTROLLER_MASTER);
+
+	pros::Motor left_armo(7,false);			//the left intake motor
+	pros::Motor right_armo(5,true); 		//the right intake motor
+	pros::ADIDigitalOut wings (1, LOW); 	//the pneumatics to extend the pusher wings
 
 	pros::Motor_Group left_drive(); //input motor ports. negative port means reveresed
 	pros::Motor_Group right_drive();
 
+
+	controller.print(1,1,"%d",test.get_bob());
+	controller.print(2,1,"my guy");
+
+//When she says she only likes bad boys; and you only use (If Else statements).
 	while (true) {
 		pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
 		                 (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
@@ -96,13 +104,12 @@ void opcontrol() {
 		// right_drive = right;
 
 		
-		if (master.get_digital(DIGITAL_A)) {
-		left_armo = 95;
-		right_armo = 95;
+		if (controller.get_digital(DIGITAL_A)) {
+			left_armo = 95;
+			right_armo = 95;
 		}
 
-
-if (master.get_digital(DIGITAL_B)) { 
+		if (controller.get_digital(DIGITAL_B)) { 
 			wings.set_value(HIGH);
 		} else {
 			wings.set_value(LOW);
