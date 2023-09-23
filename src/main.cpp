@@ -102,14 +102,16 @@ void opcontrol() {
 	pros::Motor_Group right_drivetrain({right_top_drive, right_back_drive, right_front_drive}); //the three motors for the right side of the drivetrain
  
 //test printing stuff
-	controller.print(1,1,"%d",test.get_bob());
-	controller.print(2,1,"my guy");
+	pros::lcd::print(3,"%d",test.get_bob());
 
 //operator control loop
 	while (true) {
+
+//printing on the brain screen
 		pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
 		                 (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
 		                 (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
+		
 
 		float left_drive_speed = customMath.drive_cubic(controller.get_analog(ANALOG_LEFT_Y));
 		float right_drive_speed = controller.get_analog(ANALOG_RIGHT_Y);

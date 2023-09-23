@@ -9,7 +9,7 @@ public:
     }
 
 protected:
-    char bob;
+    char bob = 'a';
 };
 
 
