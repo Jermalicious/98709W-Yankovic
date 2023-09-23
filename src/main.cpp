@@ -77,31 +77,45 @@ void autonomous() {}
 
 void opcontrol() {
 
+//define classes from classesTesting.h
 	Testing test;
+	CustomMath customMath;
 
+// define controller
 	pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
+//define miscellaneous motors and pneumatics
 	pros::Motor left_armo(7,false);			//the left intake motor
 	pros::Motor right_armo(5,true); 		//the right intake motor
 	pros::ADIDigitalOut wings (1, LOW); 	//the pneumatics to extend the pusher wings
 
-	pros::Motor_Group left_drive(); //input motor ports. negative port means reveresed
-	pros::Motor_Group right_drive();
+//define drivetrain motors
+	pros::Motor left_top_drive (2,true);
+	pros::Motor left_back_drive (3,false);
+	pros::Motor left_front_drive (4, true);						//left_front_motor
+	pros::Motor right_top_drive (10,false);
+	pros::Motor	right_back_drive (9,true);
+	pros::Motor right_front_drive (8,false);
 
-
+//define drivetrain motor groups
+	pros::Motor_Group left_drivetrain({left_top_drive, left_back_drive, left_front_drive}); 	//the three motors for the left side of the drivetrain
+	pros::Motor_Group right_drivetrain({right_top_drive, right_back_drive, right_front_drive}); //the three motors for the right side of the drivetrain
+ 
+//test printing stuff
 	controller.print(1,1,"%d",test.get_bob());
 	controller.print(2,1,"my guy");
 
-//When she says she only likes bad boys; and you only use (If Else statements).
+//operator control loop
 	while (true) {
 		pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
 		                 (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
 		                 (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
-		// int left = master.get_analog(ANALOG_LEFT_Y);
-		// int right = master.get_analog(ANALOG_RIGHT_Y);
 
-		// left_drive = left;
-		// right_drive = right;
+		float left_drive_speed = customMath.drive_cubic(controller.get_analog(ANALOG_LEFT_Y));
+		float right_drive_speed = controller.get_analog(ANALOG_RIGHT_Y);
+
+		left_drivetrain = left_drive_speed;
+		right_drivetrain = right_drive_speed; 
 
 		
 		if (controller.get_digital(DIGITAL_A)) {
