@@ -1,5 +1,6 @@
 #include "main.h"
 #include "classesTesting.h"
+#include "autonFunctions.h"
 
 /**
  * A callback function for LLEMU's center button.
@@ -46,7 +47,10 @@ void disabled() {}
  * This task will exit when the robot is enabled and autonomous or opcontrol
  * starts.
  */
-void competition_initialize() {}
+void competition_initialize()
+	{
+
+	}
 
 /*
  * Runs the user autonomous code. This function will be started in its own task
@@ -58,8 +62,14 @@ void competition_initialize() {}
  * If the robot is disabled or communications is lost, the autonomous task
  * will be stopped. Re-enabling the robot will restart the task, not re-start it
  * from where it left off.
- */
-void autonomous() {}
+ */   
+		/* Jeremy Here, ^ this ^  might be able to be avoided if we save variables to
+		* an external microSD card constantly. maybe PID constants too for easy tuning?
+		*/
+void autonomous()
+	{
+
+	}
 
 /**
  * Runs the operator control code. This function will be started in its own task
@@ -102,7 +112,7 @@ void opcontrol() {
 	pros::Motor_Group right_drivetrain({right_top_drive, right_back_drive, right_front_drive}); //the three motors for the right side of the drivetrain
  
 //test printing stuff
-	pros::lcd::print(3,"%d",test.get_bob());
+	pros::lcd::print(3,"%s",test.get_bob());
 
 //operator control loop
 	while (true) {

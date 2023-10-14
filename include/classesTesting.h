@@ -28,9 +28,10 @@ public:
     float drive_cubic(float input);
 };
 
-float CustomMath::drive_cubic(float input) // hi, bro! I hthink 
+float CustomMath::drive_cubic(float input)
 {
-    float DriveSpeed = pow(input, 3) / pow(100,2);
+    //we use 103^2 so it outputs 95 when innput is 100
+    float DriveSpeed = pow(input, 3) / pow(103,2); 
 
     return DriveSpeed;
 }
