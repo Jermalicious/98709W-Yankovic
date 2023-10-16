@@ -85,6 +85,7 @@ void autonomous()
  * task, not resume it from where it left off.
  */
 
+
 void opcontrol() {
 
 //define classes from classesTesting.h
@@ -102,7 +103,7 @@ void opcontrol() {
 //define drivetrain motors
 	pros::Motor left_top_drive (2,true);
 	pros::Motor left_back_drive (3,false);
-	pros::Motor left_front_drive (4, true);						//left_front_motor
+	pros::Motor left_front_drive (4, true);				//left_front_motor
 	pros::Motor right_top_drive (10,false);
 	pros::Motor	right_back_drive (9,true);
 	pros::Motor right_front_drive (8,false);
@@ -114,32 +115,43 @@ void opcontrol() {
 //test printing stuff
 	pros::lcd::print(3,"%s",test.get_bob());
 
-//operator control loop
-	while (true) {
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////Control Loop///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+	while (true){
 
 //printing on the brain screen
 		pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
 		                 (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
 		                 (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
-		
 
-		float left_drive_speed = customMath.drive_cubic(controller.get_analog(ANALOG_LEFT_Y));
-		float right_drive_speed = controller.get_analog(ANALOG_RIGHT_Y);
-
-		left_drivetrain = left_drive_speed;
-		right_drivetrain = right_drive_speed; 
 
 		
-		if (controller.get_digital(DIGITAL_A)) {
+		if (controller.get_digital(DIGITAL_A)) { //Press A to activate intake forward
+
 			left_armo = 95;
 			right_armo = 95;
+		} else if (controller.get_digital(DIGITAL_B)) {
+
+			left_armo = -95;
+			right_armo = -95;
 		}
 
-		if (controller.get_digital(DIGITAL_B)) { 
+		if (controller.get_digital(DIGITAL_X))
+		{ 
 			wings.set_value(HIGH);
-		} else {
+		} else
+		{
 			wings.set_value(LOW);
 		}
+
+		float left_drive_speed = customMath.drive_cubic(controller.get_analog(ANALOG_LEFT_Y));
+		float right_drive_speed = customMath.drive_cubic(controller.get_analog(ANALOG_RIGHT_Y));
+
+		left_drivetrain = left_drive_speed;
+		right_drivetrain = right_drive_speed;
 
 
 		pros::delay(20);

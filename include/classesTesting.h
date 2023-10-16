@@ -30,7 +30,7 @@ public:
 
 float CustomMath::drive_cubic(float input)
 {
-    //we use 103^2 so it outputs 95 when innput is 100
+    //we use 103^2 so it caps at 95% when innput is 100%
     float DriveSpeed = pow(input, 3) / pow(103,2); 
 
     return DriveSpeed;
