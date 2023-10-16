@@ -9,7 +9,7 @@ class Controll
 
     protected:
 
-        float basicPID(double kP, double kI, double kD, float sensor_input, float goal, float kI_start_value, float timeout_msec);
+        float basicPID(double kP, double kI, double kD, float sensor_input, float target, float kI_start_value, float timeout_msec);
 
         double kP;
         double kI;
@@ -28,10 +28,10 @@ class PIDForward : public Controll
             kD = input_kD;
         }
 
-        float run(float sensor_input, float goal, float kI_start_value, float timeout_msec) //later make this constructor search a file on a microSD card to find kP, kI, and kD
+        float run(float sensor_input, float target, float kI_start_value, float timeout_msec) //later make this constructor search a file on a microSD card to find kP, kI, and kD
         {
             
-            return basicPID(kP, kI, kD, sensor_input, goal, kI_start_value, timeout_msec);
+            return basicPID(kP, kI, kD, sensor_input, target, kI_start_value, timeout_msec);
         }
 
     };
@@ -47,10 +47,10 @@ class PIDTurn : public Controll
             kD = input_kD;
         }
 
-        float run(float sensor_input, float goal, float kI_start_value, float timeout_msec) //later make this constructor search a file on a microSD card to find kP, kI, and kD
+        float run(float sensor_input, float target, float kI_start_value, float timeout_msec) //Add settle_time
         {
 
-            return basicPID(kP, kI, kD, sensor_input, goal, kI_start_value, timeout_msec);
+            return basicPID(kP, kI, kD, sensor_input, target, kI_start_value, timeout_msec);  
         }
 
     };
@@ -68,10 +68,9 @@ class Odometry
 
     };
 
-
-float basicPID (double kP, double kI, double kD, float sensor_input, float goal, float kI_start_value, float timeout_msec)
+float basicPID (double kP, double kI, double kD, float sensor_input, float target, float kI_start_value, float timeout_msec)
     {
-    float error = goal - sensor_input;
+    float error = target - sensor_input;
     float prev_error;
     float integral;
     float derivative;

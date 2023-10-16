@@ -95,10 +95,12 @@ void opcontrol() {
 // define controller
 	pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
-//define miscellaneous motors and pneumatics
+//define miscellaneous motors, pneumatics, and tracking wheels 
 	pros::Motor left_armo(7,false);			//the left intake motor
 	pros::Motor right_armo(5,true); 		//the right intake motor
 	pros::ADIDigitalOut wings (1, LOW); 	//the pneumatics to extend the pusher wings
+	pros::Rotation tracking_wheel_X (12, false); //Change Port
+	pros::Rotation tracking_wheel_Y	(13, false); //Change Port
 
 //define drivetrain motors
 	pros::Motor left_top_drive (2,true);
@@ -114,6 +116,18 @@ void opcontrol() {
  
 //test printing stuff
 	pros::lcd::print(3,"%s",test.get_bob());
+
+//decalre variables
+
+float drive_forward;
+float drive_turn;
+
+float left_drive_speed;
+float right_drive_speed;
+
+float const drive_turn_constant = 1.4;
+
+//initialize variables
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -147,8 +161,12 @@ void opcontrol() {
 			wings.set_value(LOW);
 		}
 
-		float left_drive_speed = customMath.drive_cubic(controller.get_analog(ANALOG_LEFT_Y));
-		float right_drive_speed = customMath.drive_cubic(controller.get_analog(ANALOG_RIGHT_Y));
+	//Sets drivetrain speed in % (capped at 95%)
+		drive_forward = controller.get_analog(ANALOG_LEFT_Y);
+		drive_turn = controller.get_analog(ANALOG_LEFT_X);
+
+		left_drive_speed = customMath.drive_cubic(drive_forward * drive_turn_constant + drive_turn);
+		right_drive_speed = customMath.drive_cubic(drive_forward * drive_turn_constant - drive_turn);
 
 		left_drivetrain = left_drive_speed;
 		right_drivetrain = right_drive_speed;
