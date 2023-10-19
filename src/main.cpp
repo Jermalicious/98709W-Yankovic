@@ -89,7 +89,6 @@ void autonomous()
 void opcontrol() {
 
 //define classes from classesTesting.h
-	Testing test;
 	CustomMath customMath;
 
 // define controller
@@ -115,7 +114,7 @@ void opcontrol() {
 	pros::Motor_Group right_drivetrain({right_top_drive, right_back_drive, right_front_drive}); //the three motors for the right side of the drivetrain
  
 //test printing stuff
-	pros::lcd::print(3,"%s",test.get_bob());
+	// pros::lcd::print(3,"%s",test.get_bob());
 
 //decalre variables
 
@@ -142,17 +141,22 @@ float const drive_turn_constant = 1.4;
 		                 (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
 
 
-		
-		if (controller.get_digital(DIGITAL_A)) { //Press A to activate intake forward
+	//intake controller
+		if (controller.get_digital(DIGITAL_R1)) { //forward
 
 			left_armo = 95;
 			right_armo = 95;
-		} else if (controller.get_digital(DIGITAL_B)) {
+		} else if (controller.get_digital(DIGITAL_L1)) { //reverse
 
 			left_armo = -95;
 			right_armo = -95;
+		} else {
+
+			left_armo.brake();
+			right_armo.brake();
 		}
 
+	//wings controller
 		if (controller.get_digital(DIGITAL_X))
 		{ 
 			wings.set_value(HIGH);
@@ -163,7 +167,7 @@ float const drive_turn_constant = 1.4;
 
 	//Sets drivetrain speed in % (capped at 95%)
 		drive_forward = controller.get_analog(ANALOG_LEFT_Y);
-		drive_turn = controller.get_analog(ANALOG_LEFT_X);
+		drive_turn = controller.get_analog(ANALOG_RIGHT_X);
 
 		left_drive_speed = customMath.drive_cubic(drive_forward * drive_turn_constant + drive_turn);
 		right_drive_speed = customMath.drive_cubic(drive_forward * drive_turn_constant - drive_turn);
