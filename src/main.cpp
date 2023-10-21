@@ -2,6 +2,39 @@
 #include "classesTesting.h"
 #include "autonFunctions.h"
 
+//define classes from classesTesting.h
+	CustomMath customMath;
+
+// define controller
+	pros::Controller controller(pros::E_CONTROLLER_MASTER);
+
+//define miscellaneous motors, pneumatics, and tracking wheels 
+	pros::Motor left_intake(7,false);			//the left intake motor
+	pros::Motor right_intake(5,true); 		//the right intake motor
+	pros::ADIDigitalOut wings (1, LOW); 	//the pneumatics to extend the pusher wings
+	pros::Rotation tracking_wheel_X (12, false); //Change Port
+	pros::Rotation tracking_wheel_Y	(13, false); //Change Port
+
+//define drivetrain motors
+	pros::Motor left_top_drive (2,true);
+	pros::Motor left_back_drive (3,false);
+	pros::Motor left_front_drive (4, true);
+	pros::Motor right_top_drive (10,false);
+	pros::Motor	right_back_drive (9,true);
+	pros::Motor right_front_drive (8,false);
+
+//define drivetrain motor groups
+	pros::Motor_Group left_drivetrain({left_top_drive, left_back_drive, left_front_drive}); 	//the three motors for the left side of the drivetrain
+	pros::Motor_Group right_drivetrain({right_top_drive, right_back_drive, right_front_drive}); //the three motors for the right side of the drivetrain
+	pros::Motor_Group intake({left_intake, right_intake});
+
+
+void drive(std::array <float,2> drive_input)
+{
+	left_drivetrain.move_voltage(drive_input[1]);
+	right_drivetrain.move_voltage(drive_input[2]);
+}
+
 /**
  * A callback function for LLEMU's center button.
  *
@@ -68,7 +101,28 @@ void competition_initialize()
 		*/
 void autonomous()
 	{
+		PIDForward forward(.8, .01, .2);
+		PIDTurn turn(.8, .01, .2);
+		std::array < float,2 > forward_speed;
 
+		drive(forward.run(tracking_wheel_Y, 48)); //drive to middle
+
+		drive(turn.run(5/*inertial sensor value*/, 90)); //turn to goal
+
+		drive(forward.run(tracking_wheel_Y, 6)); //drive to goal
+
+		intake = -95; //deopist tri-ball
+		pros::delay(500);
+		intake.brake();
+
+
+		drive(forward.run(tracking_wheel_Y, -6)); //back up from goal
+
+		drive(turn.run(5/*inertial sensor value*/, 53.1)); //turn toward elevation bar
+
+		wings.set_value(HIGH); //extend wings to catch on bar
+
+		drive(forward.run(tracking_wheel_Y, 60)); //drive to the bar
 	}
 
 /**
@@ -88,30 +142,6 @@ void autonomous()
 
 void opcontrol() {
 
-//define classes from classesTesting.h
-	CustomMath customMath;
-
-// define controller
-	pros::Controller controller(pros::E_CONTROLLER_MASTER);
-
-//define miscellaneous motors, pneumatics, and tracking wheels 
-	pros::Motor left_armo(7,false);			//the left intake motor
-	pros::Motor right_armo(5,true); 		//the right intake motor
-	pros::ADIDigitalOut wings (1, LOW); 	//the pneumatics to extend the pusher wings
-	pros::Rotation tracking_wheel_X (12, false); //Change Port
-	pros::Rotation tracking_wheel_Y	(13, false); //Change Port
-
-//define drivetrain motors
-	pros::Motor left_top_drive (2,true);
-	pros::Motor left_back_drive (3,false);
-	pros::Motor left_front_drive (4, true);				//left_front_motor
-	pros::Motor right_top_drive (10,false);
-	pros::Motor	right_back_drive (9,true);
-	pros::Motor right_front_drive (8,false);
-
-//define drivetrain motor groups
-	pros::Motor_Group left_drivetrain({left_top_drive, left_back_drive, left_front_drive}); 	//the three motors for the left side of the drivetrain
-	pros::Motor_Group right_drivetrain({right_top_drive, right_back_drive, right_front_drive}); //the three motors for the right side of the drivetrain
  
 //test printing stuff
 	// pros::lcd::print(3,"%s",test.get_bob());
@@ -144,16 +174,16 @@ float const drive_turn_constant = 1.4;
 	//intake controller
 		if (controller.get_digital(DIGITAL_R1)) { //forward
 
-			left_armo = 95;
-			right_armo = 95;
+			intake = 95;
+
 		} else if (controller.get_digital(DIGITAL_L1)) { //reverse
 
-			left_armo = -95;
-			right_armo = -95;
+			intake = -95;
+
 		} else {
 
-			left_armo.brake();
-			right_armo.brake();
+			intake.brake();
+
 		}
 
 	//wings controller
