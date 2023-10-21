@@ -12,8 +12,9 @@
 	pros::Motor left_intake(7,false);			//the left intake motor
 	pros::Motor right_intake(5,true); 		//the right intake motor
 	pros::ADIDigitalOut wings (1, LOW); 	//the pneumatics to extend the pusher wings
-	pros::Rotation tracking_wheel_X (12, false); //Change Port
-	pros::Rotation tracking_wheel_Y	(13, false); //Change Port
+	pros::Rotation tracking_wheel_X (13, false); //Change Port
+	pros::Rotation tracking_wheel_Y	(12, false); //Change Port
+	pros::Imu inertial_sensor (18);
 
 //define drivetrain motors
 	pros::Motor left_top_drive (2,true);
@@ -99,15 +100,16 @@ void competition_initialize()
 		/* Jeremy Here, ^ this ^  might be able to be avoided if we save variables to
 		* an external microSD card constantly. maybe PID constants too for easy tuning?
 		*/
+	
 void autonomous()
 	{
 		PIDForward forward(.8, .01, .2);
 		PIDTurn turn(.8, .01, .2);
-		std::array < float,2 > forward_speed;
+		inertial_sensor.reset();
 
 		drive(forward.run(tracking_wheel_Y, 48)); //drive to middle
 
-		drive(turn.run(5/*inertial sensor value*/, 90)); //turn to goal
+		drive(turn.run(inertial_sensor.get_rotation(), 90)); //turn to goal
 
 		drive(forward.run(tracking_wheel_Y, 6)); //drive to goal
 
@@ -118,12 +120,13 @@ void autonomous()
 
 		drive(forward.run(tracking_wheel_Y, -6)); //back up from goal
 
-		drive(turn.run(5/*inertial sensor value*/, 53.1)); //turn toward elevation bar
+		drive(turn.run(inertial_sensor.get_rotation(), 53.1)); //turn toward elevation bar
 
 		wings.set_value(HIGH); //extend wings to catch on bar
 
 		drive(forward.run(tracking_wheel_Y, 60)); //drive to the bar
 	}
+	
 
 /**
  * Runs the operator control code. This function will be started in its own task

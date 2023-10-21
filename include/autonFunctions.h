@@ -15,6 +15,9 @@ class Controll
         double kI;
         double kD;
 
+    private:
+        int timer;
+
     };
 
 class PIDForward : public Controll
@@ -28,7 +31,7 @@ class PIDForward : public Controll
             kD = input_kD;
         }
 
-        std::array< float,2 > &run(pros::Rotation sensor, float target_inches, float kI_start_at_error_value = 10, float timeout_msec = 3000) //Add settle time. This returns an array with two items: left_speed and right_speed
+        std::array< float,2 > run(pros::Rotation sensor, float target_inches, float kI_start_at_error_value = 10, float timeout_msec = 3000) //Add settle time. This returns an array with two items: left_speed and right_speed
         {
             float sensor_input = sensor.get_position() / 360 * 10.2 /* tracking wheel circumference*/;
 
@@ -36,6 +39,7 @@ class PIDForward : public Controll
             std::array < float,2 > left_right_speed = {forward_speed,forward_speed}; //std::array < float,2 > is a data type. it is an array with two floats in it
 
             return left_right_speed;
+
         }
 
     };
@@ -52,7 +56,7 @@ class PIDTurn : public Controll
             kD = input_kD;
         }
 
-        std::array< float,2 > &run(float sensor_input, float target_degrees, float kI_start_at_error_value = 45, float timeout_msec = 2.5) //Add settle time. This returns an array with two items: left_speed and right_speed
+        std::array< float,2 > run(float sensor_input, float target_degrees, float kI_start_at_error_value = 45, float timeout_msec = 2.5) //Add settle time. This returns an array with two items: left_speed and right_speed
         {
 
 
@@ -77,12 +81,15 @@ class Odometry
 
     };
 
-float basicPID (double kP, double kI, double kD, float sensor_input, float target, float kI_start_at_error_value, float timeout_msec)
+float Controll::basicPID(double kP, double kI, double kD, float sensor_input, float target, float kI_start_at_error_value, float timeout_msec)
     {
     float error = target - sensor_input;
     float prev_error;
     float integral;
     float derivative;
+
+    timer = 0;
+
 
     if (error < kI_start_at_error_value)
         {
@@ -100,6 +107,7 @@ float basicPID (double kP, double kI, double kD, float sensor_input, float targe
         output = 11;
     }
 
+    timer += 20;
     return output;
     }
 
