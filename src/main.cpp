@@ -1,6 +1,7 @@
 #include "main.h"
 #include "classesTesting.h"
 #include "autonFunctions.h"
+#include "devices.h"
 
 //define classes from classesTesting.h
 	CustomMath customMath;
@@ -9,8 +10,8 @@
 	pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 //define miscellaneous motors, pneumatics, and tracking wheels 
-	pros::Motor left_intake(7,false);			//the left intake motor
-	pros::Motor right_intake(5,true); 		//the right intake motor
+	pros::Motor left_intake(7,true);			//the left intake motor
+	pros::Motor right_intake(5,false); 		//the right intake motor
 	pros::ADIDigitalOut wings (1, LOW); 	//the pneumatics to extend the pusher wings
 	pros::Rotation tracking_wheel_X (13, false); //Change Port
 	pros::Rotation tracking_wheel_Y	(12, false); //Change Port
@@ -29,12 +30,16 @@
 	pros::Motor_Group right_drivetrain({right_top_drive, right_back_drive, right_front_drive}); //the three motors for the right side of the drivetrain
 	pros::Motor_Group intake({left_intake, right_intake});
 
+//declare functions so taht we can define them at the bottom of this page
+void basicPID(double kP, double kI, double kD, float sensor_input, float target, float kI_start_at_error_value, float timeout_msec);
 
-void drive(std::array <float,2> drive_input)
-{
-	left_drivetrain.move_voltage(drive_input[1]);
-	right_drivetrain.move_voltage(drive_input[2]);
-}
+
+//declare global variables
+double forward_kP = .5;
+double forward_kI = .0001;
+double forward_kD = .1;
+
+
 
 /**
  * A callback function for LLEMU's center button.
@@ -103,28 +108,28 @@ void competition_initialize()
 	
 void autonomous()
 	{
-		PIDForward forward(.8, .01, .2);
-		PIDTurn turn(.8, .01, .2);
-		inertial_sensor.reset();
+		// PIDForward forward(.8, .01, .2);
+		// PIDTurn turn(.8, .01, .2);
+		// inertial_sensor.reset();
 
-		drive(forward.run(tracking_wheel_Y, 48)); //drive to middle
+		// drive(forward.run(tracking_wheel_Y, 48)); //drive to middle
 
-		drive(turn.run(inertial_sensor.get_rotation(), 90)); //turn to goal
+		// drive(turn.run(inertial_sensor.get_rotation(), 90)); //turn to goal
 
-		drive(forward.run(tracking_wheel_Y, 6)); //drive to goal
+		// drive(forward.run(tracking_wheel_Y, 6)); //drive to goal
 
-		intake = -95; //deopist tri-ball
-		pros::delay(500);
-		intake.brake();
+		// intake = -95; //deopist tri-ball
+		// pros::delay(500);
+		// intake.brake();
 
 
-		drive(forward.run(tracking_wheel_Y, -6)); //back up from goal
+		// drive(forward.run(tracking_wheel_Y, -6)); //back up from goal
 
-		drive(turn.run(inertial_sensor.get_rotation(), 53.1)); //turn toward elevation bar
+		// drive(turn.run(inertial_sensor.get_rotation(), 53.1)); //turn toward elevation bar
 
-		wings.set_value(HIGH); //extend wings to catch on bar
+		// wings.set_value(HIGH); //extend wings to catch on bar
 
-		drive(forward.run(tracking_wheel_Y, 60)); //drive to the bar
+		// drive(forward.run(tracking_wheel_Y, 60)); //drive to the bar
 	}
 	
 
@@ -212,4 +217,61 @@ float const drive_turn_constant = 1.4;
 		pros::delay(20);
 	
 	}
+}
+
+
+
+void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_value, float timeout_msec)
+    {
+    float error = target - tracking_wheel_Y.get_position() / 360 * (2.75 * 3.14159);
+    float prev_error;
+    float integral;
+    float derivative;
+
+	float settle_distance = 1; //change this value to change what error the PID considers "settled"
+
+	int timer = 0;
+	int settle_timer = 0;
+
+
+    while(timer <= timeout_msec && settle_timer >= settle_time_msec)
+    {
+
+    if (error < kI_start_at_error_value)
+        {
+            integral += error;
+        }
+
+    derivative = prev_error - error;
+
+    prev_error = error;
+
+    float output = forward_kP*error + forward_kI*integral + forward_kD*derivative;
+
+    if(output > 11)//if output is greater than 11 volts (out of a possible 12), cap at 11 volts
+	{
+		output = 11;
+	} 
+
+	//output to drivetrain
+
+	left_drivetrain = output;
+	right_drivetrain = output;
+
+
+	if(error < abs(settle_distance))
+	{
+		settle_timer += 20;
+	} else
+	{
+		settle_timer = 0;
+	}
+
+    timer += 20;
+
+	pros::delay(20); //fix to adjust for time the function runs for
+
+	
+    
+    }
 }
