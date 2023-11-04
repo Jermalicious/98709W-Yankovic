@@ -1,10 +1,11 @@
 #include "main.h"
 #include "classesTesting.h"
-#include "autonFunctions.h"
-#include "devices.h"
+// #include "autonFunctions.h"
+#include "okapi/api.hpp"
 
 //define classes from classesTesting.h
 	CustomMath customMath;
+	okapi::Rate loopRate;
 
 // define controller
 	pros::Controller controller(pros::E_CONTROLLER_MASTER);
@@ -31,13 +32,19 @@
 	pros::Motor_Group intake({left_intake, right_intake});
 
 //declare functions so taht we can define them at the bottom of this page
-void basicPID(double kP, double kI, double kD, float sensor_input, float target, float kI_start_at_error_value, float timeout_msec);
+void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_value, int timeout_msec);
+void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value, int timeout_msec);
 
 
 //declare global variables
 double forward_kP = .5;
 double forward_kI = .0001;
 double forward_kD = .1;
+
+double turn_kP = .5;
+double turn_kI = .0001;
+double turn_kD = .1;
+
 
 
 
@@ -108,6 +115,52 @@ void competition_initialize()
 	
 void autonomous()
 	{
+		//Basic PID tuning routine
+		// ForwardPID(12,500,6,50000);
+
+		// TurnPID(180,500,45,50000);
+
+		// ForwardPID(12,500,6,50000);
+
+		// TurnPID(0,500,45,50000);
+
+
+		
+		for(int i = 0; i < 41; i++) //runs the fire routine 42 times (two extra for now)
+		{
+			//put here a command to turn the catapult enough to fire ONCE (probably a  catapult.move_relative(some number in here)  )
+			//you have to define the "catapult" device at the top of this page. Just look at your notes, Kate
+		}
+
+	//move to other zone
+
+	//Move away from goal before sensor reset so no hit corner
+		TurnPID(-45); //Turn to easy angle before sensor reset
+		
+
+		inertial_sensor.reset(); //because we start at a weird diagonal angle, this changes our absolute "forward" angle to straight horizontally toward the other zone
+
+		ForwardPID(8 * 12); //moves forward 8 feet into other zone
+		TurnPID(90); //turn toward goal
+		ForwardPID(2 * 12); //move toward goal
+		TurnPID(180); //turn toward bar
+		ForwardPID(2 * 12); // move toward bar
+		TurnPID(90); //turn to be parallel with the goal so we can set up our movement to shove triballs under
+		ForwardPID(2 * 12); //move parallel with the goal
+		TurnPID(0); //turn toward goal
+
+		ForwardPID(3 * 12); //score some triballs, baby!
+
+							//the movement to move toward the bar and move to parallel with the goal can be
+							//replaced in the future for one diagonal movement, but for simplicity's sake
+							//I'll keep it as two right angle movements for now
+
+							//see how this works, then backup and try to shove more triballs under the goal
+
+
+
+
+	//winpoint pre-match autonomous outline (with terrible old functions, replace all)
 		// PIDForward forward(.8, .01, .2);
 		// PIDTurn turn(.8, .01, .2);
 		// inertial_sensor.reset();
@@ -221,21 +274,29 @@ float const drive_turn_constant = 1.4;
 
 
 
-void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_value, float timeout_msec)
+void ForwardPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 7, int timeout_msec)
     {
     float error = target - tracking_wheel_Y.get_position() / 360 * (2.75 * 3.14159);
     float prev_error;
     float integral;
     float derivative;
+	int output;
 
 	float settle_distance = 1; //change this value to change what error the PID considers "settled"
 
 	int timer = 0;
 	int settle_timer = 0;
 
+	if (timeout_msec = -1) //this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
+	{
+		timeout_msec = error * 30 + 500; //sets the timeout msecs to 3 times the error plus a baseline 500 ms
+	}
 
-    while(timer <= timeout_msec && settle_timer >= settle_time_msec)
+
+    while(timer <= timeout_msec && settle_timer <= settle_time_msec)
     {
+
+	error = target - tracking_wheel_Y.get_position() / 360 * (2.75 * 3.14159);
 
     if (error < kI_start_at_error_value)
         {
@@ -246,17 +307,17 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 
     prev_error = error;
 
-    float output = forward_kP*error + forward_kI*integral + forward_kD*derivative;
+    output = forward_kP*error + forward_kI*integral + forward_kD*derivative;
 
-    if(output > 11)//if output is greater than 11 volts (out of a possible 12), cap at 11 volts
+    if(output > 11000) //if output is greater than 11.000 volts (out of a possible 12), cap at 11000 volts
 	{
-		output = 11;
+		output = 11000;
 	} 
 
 	//output to drivetrain
 
-	left_drivetrain = output;
-	right_drivetrain = output;
+	left_drivetrain.move_voltage(output);	//output needs to be -12000 to 12000
+	right_drivetrain.move_voltage(output);
 
 
 	if(error < abs(settle_distance))
@@ -269,9 +330,73 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 
     timer += 20;
 
-	pros::delay(20); //fix to adjust for time the function runs for
 
+    loopRate.delay(okapi::QFrequency(50.0)); // Delay to maintain the specified loop rate of 50 cycles per second
+}
 	
-    
+
+}
+
+
+
+void TurnPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 45, int timeout_msec = -1)
+    {
+    float error = target - inertial_sensor.get_rotation(); //target is degrees we want to be at
+    float prev_error;
+    float integral;
+    float derivative;
+	int output;
+
+	float settle_distance = 1; //change this value to change what error the PID considers "settled"
+
+	int timer = 0;
+	int settle_timer = 0;
+
+	if (timeout_msec = -1) //this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
+	{
+		timeout_msec = error * 30 + 500; //sets the timeout msecs to 3 times the error plus a baseline 500 ms
+	}
+
+
+    while(timer <= timeout_msec && settle_timer <= settle_time_msec)
+    {
+
+	error = target - inertial_sensor.get_rotation();
+
+    if (error < kI_start_at_error_value)
+        {
+            integral += error;
+        }
+
+    derivative = prev_error - error;
+
+    prev_error = error;
+
+    output = forward_kP*error + forward_kI*integral + forward_kD*derivative;
+
+    if(output > 11000) //if output is greater than 11.000 volts (out of a possible 12), cap at 11000 volts
+	{
+		output = 11000;
+	} 
+
+	//output to drivetrain
+
+	left_drivetrain.move_voltage(output);	//output needs to be -12000 to 12000
+	right_drivetrain.move_voltage(-output);
+
+
+	if(error < abs(settle_distance))
+	{
+		settle_timer += 20;
+	} else
+	{
+		settle_timer = 0;
+	}
+
+    timer += 20;
+
+
+	loopRate.delay(okapi::QFrequency(50.0)); // Delay to maintain the specified loop rate of 50 cycles per second
+
     }
 }
