@@ -33,8 +33,8 @@
 	pros::Motor_Group intake({left_intake, right_intake});
 
 //declare functions so taht we can define them at the bottom of this page
-void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_value, int timeout_msec);
-void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value, int timeout_msec);
+void ForwardPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 7, int timeout_msec = -1);
+void TurnPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 45, int timeout_msec = -1);
 
 
 //declare global variables
@@ -127,30 +127,30 @@ void autonomous()
 
 
 		
-		for(int i = 0; i < 41; i++) //runs the fire routine 42 times (two extra for now)
+		for(int i = 0; i < 9; i++) //runs the fire routine 42 times (two extra for now)
 		{
-			cata_motor.move_relative(180,95); //180 Degrees = 1 fire
+			cata_motor.move_relative(36,100); //180 Degrees = 1 fire
 
 		}
 
 	//move to other zone
 
-		ForwardPID(.5 * 12); //Move away from goal before sensor reset so no hit corner
-		TurnPID(-45); //Turn to easy angle before sensor reset
+		// ForwardPID(.5 * 12); //Move away from goal before sensor reset so no hit corner
+		// TurnPID(-45); //Turn to easy angle before sensor reset
 		
 
-		inertial_sensor.reset(); //because we start at a weird diagonal angle, this changes our absolute "forward" angle to straight horizontally toward the other zone
+		// inertial_sensor.reset(); //because we start at a weird diagonal angle, this changes our absolute "forward" angle to straight horizontally toward the other zone
 
-		ForwardPID(8 * 12); //moves forward 8 feet into other zone
-		TurnPID(90); //turn toward goal
-		ForwardPID(2 * 12); //move toward goal
-		TurnPID(180); //turn toward bar
-		ForwardPID(2 * 12); // move toward bar
-		TurnPID(90); //turn to be parallel with the goal so we can set up our movement to shove triballs under
-		ForwardPID(2 * 12); //move parallel with the goal
-		TurnPID(0); //turn toward goal
+		// ForwardPID(8 * 12); //moves forward 8 feet into other zone
+		// TurnPID(90); //turn toward goal
+		// ForwardPID(2 * 12); //move toward goal
+		// TurnPID(180); //turn toward bar
+		// ForwardPID(2 * 12); // move toward bar
+		// TurnPID(90); //turn to be parallel with the goal so we can set up our movement to shove triballs under
+		// ForwardPID(2 * 12); //move parallel with the goal
+		// TurnPID(0); //turn toward goal
 
-		ForwardPID(3 * 12); //score some triballs, baby!
+		// ForwardPID(3 * 12); //score some triballs, baby!
 
 							//the movement to move toward the bar and move to parallel with the goal can be
 							//replaced in the future for one diagonal movement, but for simplicity's sake
@@ -275,7 +275,7 @@ float const drive_turn_constant = 1.4;
 
 
 
-void ForwardPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 7, int timeout_msec)
+void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_value, int timeout_msec)
     {
     float error = target - tracking_wheel_Y.get_position() / 360 * (2.75 * 3.14159);
     float prev_error;
@@ -340,7 +340,7 @@ void ForwardPID(float target, float settle_time_msec = 500, float kI_start_at_er
 
 
 
-void TurnPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 45, int timeout_msec = -1)
+void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value, int timeout_msec)
     {
     float error = target - inertial_sensor.get_rotation(); //target is degrees we want to be at
     float prev_error;
