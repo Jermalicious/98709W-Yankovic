@@ -11,11 +11,12 @@
 	pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 //define miscellaneous motors, pneumatics, and tracking wheels 
-	pros::Motor left_intake(7,true);			//the left intake motor
+	pros::Motor cata_motor (1,true);		//Catapult mortor
+	pros::Motor left_intake(7,true);		//the left intake motor
 	pros::Motor right_intake(5,false); 		//the right intake motor
-	pros::ADIDigitalOut wings (1, LOW); 	//the pneumatics to extend the pusher wings
-	pros::Rotation tracking_wheel_X (13, false); //Change Port
-	pros::Rotation tracking_wheel_Y	(12, false); //Change Port
+	pros::ADIDigitalOut wings (1,LOW); 		//the pneumatics to extend the pusher wings
+	pros::Rotation tracking_wheel_X (13,false); //Change Port
+	pros::Rotation tracking_wheel_Y	(12,false); //Change Port
 	pros::Imu inertial_sensor (18);
 
 //define drivetrain motors
@@ -128,13 +129,13 @@ void autonomous()
 		
 		for(int i = 0; i < 41; i++) //runs the fire routine 42 times (two extra for now)
 		{
-			//put here a command to turn the catapult enough to fire ONCE (probably a  catapult.move_relative(some number in here)  )
-			//you have to define the "catapult" device at the top of this page. Just look at your notes, Kate
+			cata_motor.move_relative(180,95); //180 Degrees = 1 fire
+
 		}
 
 	//move to other zone
 
-	//Move away from goal before sensor reset so no hit corner
+		ForwardPID(.5 * 12); //Move away from goal before sensor reset so no hit corner
 		TurnPID(-45); //Turn to easy angle before sensor reset
 		
 
