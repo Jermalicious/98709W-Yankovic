@@ -15,8 +15,8 @@
 	pros::Motor left_intake(7,true);		//the left intake motor
 	pros::Motor right_intake(5,false); 		//the right intake motor
 	pros::ADIDigitalOut wings (1,LOW); 		//the pneumatics to extend the pusher wings
-	pros::Rotation tracking_wheel_X (13,false); //Change Port
-	pros::Rotation tracking_wheel_Y	(12,false); //Change Port
+	pros::Rotation tracking_wheel_X (13,false);
+	pros::Rotation tracking_wheel_Y	(12,false);
 	pros::Imu inertial_sensor (18);
 
 //define drivetrain motors
@@ -38,13 +38,13 @@ void TurnPID(float target, float settle_time_msec = 500, float kI_start_at_error
 
 
 //declare global variables
-double forward_kP = .5;
-double forward_kI = .0001;
-double forward_kD = .1;
+const double forward_kP = 500;
+const double forward_kI = 0; //1;
+const double forward_kD = 0; //10;
 
-double turn_kP = .5;
-double turn_kI = .0001;
-double turn_kD = .1;
+const double turn_kP = .5;
+const double turn_kI = .0001;
+const double turn_kD = .1;
 
 
 
@@ -76,6 +76,8 @@ void initialize() {
 	pros::lcd::set_text(1, "Hello PROS User!");
 
 	pros::lcd::register_btn1_cb(on_center_button);
+
+	autonomous();
 }
 
 /**
@@ -116,22 +118,23 @@ void competition_initialize()
 	
 void autonomous()
 	{
+		pros::lcd::print(2,"bruh");
 		//Basic PID tuning routine
-		// ForwardPID(12,500,6,50000);
+		ForwardPID(12,500,6,50000);
 
-		// TurnPID(180,500,45,50000);
+		TurnPID(180,500,45,50000);
 
-		// ForwardPID(12,500,6,50000);
+		ForwardPID(12,500,6,50000);
 
-		// TurnPID(0,500,45,50000);
+		TurnPID(0,500,45,50000);
 
 
 		
-		for(int i = 0; i < 9; i++) //runs the fire routine 42 times (two extra for now)
-		{
-			cata_motor.move_relative(36,100); //180 Degrees = 1 fire
-
-		}
+		// for(int i = 0; i < 9; i++) //runs the fire routine 42 times (two extra for now)
+		// {
+		// 	cata_motor.move_relative(150 * 3, 99); //180 Degrees = 1 fire; 150 ticks (red motor encoder units) = 180 degrees; gear_ratio = 36:12 = 3:1
+			
+		// }
 
 	//move to other zone
 
@@ -220,9 +223,8 @@ float const drive_turn_constant = 1.4;
 
 //initialize variables
 
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////Control Loop///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////Control Loop///////////////////////////////////;////////////////////////////;//////////////////;////////////////////////;////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 	while (true){
@@ -277,27 +279,40 @@ float const drive_turn_constant = 1.4;
 
 void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_value, int timeout_msec)
     {
+	
+	tracking_wheel_Y.set_position(0);
+
     float error = target - tracking_wheel_Y.get_position() / 360 * (2.75 * 3.14159);
     float prev_error;
     float integral;
     float derivative;
-	int output;
+	int output = 0;
 
-	float settle_distance = 1; //change this value to change what error the PID considers "settled"
+	float settle_distance = 2; //change this value to change what error the PID considers "settled"
 
 	int timer = 0;
 	int settle_timer = 0;
 
 	if (timeout_msec = -1) //this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
 	{
-		timeout_msec = error * 30 + 500; //sets the timeout msecs to 3 times the error plus a baseline 500 ms
+		timeout_msec = error * 30 + 500; //sets the timeout msecs to 30 times the error plus a baseline 500 ms
 	}
+
+	tracking_wheel_Y.reset_position();
+	int sensor;
 
 
     while(timer <= timeout_msec && settle_timer <= settle_time_msec)
     {
+	
+	sensor = tracking_wheel_Y.get_position();
+	
+	pros::lcd::print(2,"tracking wheel: %d",sensor);
+	pros::lcd::print(3,"error: %f",error);
+	pros::lcd::print(4,"output: %f",forward_kP*(error + forward_kI*integral + forward_kD*derivative));
+	pros::lcd::print(5,"output: %d",output);
 
-	error = target - tracking_wheel_Y.get_position() / 360 * (2.75 * 3.14159);
+	error = target - ((float)sensor / 36000 * 2.75 * 3.14159); //turns centidegrees into rotations, then turns rotations into inches travelled. We typecast sensor into a float because ints truncate, for example 50/100 = 0
 
     if (error < kI_start_at_error_value)
         {
@@ -308,16 +323,16 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 
     prev_error = error;
 
-    output = forward_kP*error + forward_kI*integral + forward_kD*derivative;
+    output = forward_kP*(error + forward_kI*integral + forward_kD*derivative);
 
-    if(output > 11000) //if output is greater than 11.000 volts (out of a possible 12), cap at 11000 volts
+    if(output > 11000) //if output is greater than 11.000 volts (out of a possible 12), cap at 11000 milivolts
 	{
 		output = 11000;
 	} 
 
 	//output to drivetrain
 
-	left_drivetrain.move_voltage(output);	//output needs to be -12000 to 12000
+	left_drivetrain.move_voltage(output);	//output needs to be between -12000 to 12000
 	right_drivetrain.move_voltage(output);
 
 
@@ -348,7 +363,7 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
     float derivative;
 	int output;
 
-	float settle_distance = 1; //change this value to change what error the PID considers "settled"
+	float settle_distance = 5; //change this value to change what error the PID considers "settled"
 
 	int timer = 0;
 	int settle_timer = 0;
@@ -358,11 +373,14 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 		timeout_msec = error * 30 + 500; //sets the timeout msecs to 3 times the error plus a baseline 500 ms
 	}
 
+	inertial_sensor.reset();
+	float sensor;
 
     while(timer <= timeout_msec && settle_timer <= settle_time_msec)
     {
+	sensor = inertial_sensor.get_rotation();
 
-	error = target - inertial_sensor.get_rotation();
+	error = target - sensor;
 
     if (error < kI_start_at_error_value)
         {
@@ -373,7 +391,7 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 
     prev_error = error;
 
-    output = forward_kP*error + forward_kI*integral + forward_kD*derivative;
+    output = forward_kP*(error + forward_kI*integral + forward_kD*derivative);
 
     if(output > 11000) //if output is greater than 11.000 volts (out of a possible 12), cap at 11000 volts
 	{
