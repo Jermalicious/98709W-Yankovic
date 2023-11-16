@@ -280,9 +280,10 @@ float const drive_turn_constant = 1.4;
 void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_value, int timeout_msec)
     {
 	
-	tracking_wheel_Y.set_position(0);
-
-    float error = target - tracking_wheel_Y.get_position() / 360 * (2.75 * 3.14159);
+	tracking_wheel_Y.reset_position();
+	int sensor;
+    
+	float error = target - tracking_wheel_Y.get_position() / 360 * (2.75 * 3.14159);
     float prev_error;
     float integral;
     float derivative;
@@ -298,8 +299,7 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 		timeout_msec = error * 30 + 500; //sets the timeout msecs to 30 times the error plus a baseline 500 ms
 	}
 
-	tracking_wheel_Y.reset_position();
-	int sensor;
+	
 
 
     while(timer <= timeout_msec && settle_timer <= settle_time_msec)
@@ -336,7 +336,7 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 	right_drivetrain.move_voltage(output);
 
 
-	if(error < abs(settle_distance))
+	if(abs(error) < settle_distance)
 	{
 		settle_timer += 20;
 	} else
@@ -347,7 +347,7 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
     timer += 20;
 
 
-    loopRate.delay(okapi::QFrequency(50.0)); // Delay to maintain the specified loop rate of 50 cycles per second
+    loopRate.delay(okapi::QFrequency(50.0)); // Delay to maintain the specified loop rate of 50 cycles per second (20 ms between start of cycles)
 }
 	
 
@@ -363,7 +363,7 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
     float derivative;
 	int output;
 
-	float settle_distance = 5; //change this value to change what error the PID considers "settled"
+	float settle_distance = 1; //change this value to change what error the PID considers "settled"
 
 	int timer = 0;
 	int settle_timer = 0;
@@ -376,7 +376,7 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 	inertial_sensor.reset();
 	float sensor;
 
-    while(timer <= timeout_msec && settle_timer <= settle_time_msec)
+    while(timer < timeout_msec && settle_timer < settle_time_msec)
     {
 	sensor = inertial_sensor.get_rotation();
 
@@ -393,7 +393,7 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 
     output = forward_kP*(error + forward_kI*integral + forward_kD*derivative);
 
-    if(output > 11000) //if output is greater than 11.000 volts (out of a possible 12), cap at 11000 volts
+    if(output > 11000) //if output is greater than 11.000 volts (out of a possible 12), cap at 11000 milivolts
 	{
 		output = 11000;
 	} 
@@ -404,7 +404,7 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 	right_drivetrain.move_voltage(-output);
 
 
-	if(error < abs(settle_distance))
+	if(abs(error) < settle_distance)
 	{
 		settle_timer += 20;
 	} else
