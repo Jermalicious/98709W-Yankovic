@@ -320,11 +320,11 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 
 	//output to drivetrain
 
-	left_drivetrain.move_voltage(output);	//output needs to be between -12000 to 12000
+	left_drivetrain.move_voltage(output);	//output needs to be between -12000 to 12000 milivolts
 	right_drivetrain.move_voltage(output);
 
 
-	if(abs(error) < settle_distance)
+	if(abs(error) < settle_distance) //absolute value so it never goes negative
 	{
 		settle_timer += 20;
 	} else
@@ -355,7 +355,7 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 
 	if (timeout_msec = -1) //this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
 	{
-		timeout_msec = error * 30 + 500; //sets the timeout msecs to 3 times the error plus a baseline 500 ms
+		timeout_msec = error * 30 + 500; //sets the timeout msecs to 30 times the error plus a baseline 500 ms
 	}
 
 	inertial_sensor.reset();
@@ -385,11 +385,11 @@ while(timer < timeout_msec && settle_timer < settle_time_msec)
 
 	//output to drivetrain
 
-	left_drivetrain.move_voltage(output);	//output needs to be -12000 to 12000
+	left_drivetrain.move_voltage(output);	//output needs to be -12000 to 12000 milivolts
 	right_drivetrain.move_voltage(-output);
 
 
-	if(abs(error) < settle_distance)
+	if(abs(error) < settle_distance) //absolute value so it never goes negative
 	{
 		settle_timer += 20;
 	} else
