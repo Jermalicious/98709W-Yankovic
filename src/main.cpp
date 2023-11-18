@@ -82,10 +82,11 @@ void initialize() {
 
 	pros::lcd::register_btn1_cb(on_center_button);
 
-	while(!inertial_sensor.is_calibrating())
+	while(inertial_sensor.is_calibrating())
 	{
 		pros::delay(20);
 	}
+
 	autonomous();
 }
 
