@@ -11,13 +11,13 @@
 	pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 //define miscellaneous motors, pneumatics, and tracking wheels 
-	pros::Motor cata_motor (1,true);		//Catapult mortor
-	pros::Motor left_intake(7,true);		//the left intake motor
-	pros::Motor right_intake(5,false); 		//the right intake motor
+	pros::Motor cata_motor (15,true);		//Catapult mortor
+	pros::Motor left_intake(19,true);		//the left intake motor
+	pros::Motor right_intake(7,false); 		//the right intake motor
 	pros::ADIDigitalOut wings (1,LOW); 		//the pneumatics to extend the pusher wings
-	pros::Rotation tracking_wheel_X (13,false);
+	pros::Rotation tracking_wheel_X (13,false);	//Tracking wheels
 	pros::Rotation tracking_wheel_Y	(12,false);
-	pros::Imu inertial_sensor (18);
+	pros::Imu inertial_sensor (14);
 
 //define drivetrain motors
 	pros::Motor left_top_drive (2,true);
@@ -42,9 +42,9 @@ const double forward_kP = 500;
 const double forward_kI = 0; //1;
 const double forward_kD = 0; //10;
 
-const double turn_kP = .5;
-const double turn_kI = .0001;
-const double turn_kD = .1;
+const double turn_kP = 500;
+const double turn_kI = .1;
+const double turn_kD = 10;
 
 
 
@@ -120,13 +120,8 @@ void autonomous()
 	{
 		pros::lcd::print(2,"bruh");
 		//Basic PID tuning routine
-		ForwardPID(12,500,6,50000);
-
-		TurnPID(180,500,45,50000);
-
-		ForwardPID(12,500,6,50000);
-
-		TurnPID(0,500,45,50000);
+		inertial_sensor.reset();
+		
 
 
 		
@@ -361,6 +356,7 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
     float prev_error;
     float integral;
     float derivative;
+	float sensor; 
 	int output;
 
 	float settle_distance = 1; //change this value to change what error the PID considers "settled"
@@ -373,8 +369,6 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 		timeout_msec = error * 30 + 500; //sets the timeout msecs to 30 times the error plus a baseline 500 ms
 	}
 
-	inertial_sensor.reset();
-	float sensor;
 
     while(timer < timeout_msec && settle_timer < settle_time_msec)
     {
@@ -391,7 +385,7 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 
     prev_error = error;
 
-    output = forward_kP*(error + forward_kI*integral + forward_kD*derivative);
+    output = turn_kP*(error + turn_kI*integral + turn_kD*derivative);
 
     if(output > 11000) //if output is greater than 11.000 volts (out of a possible 12), cap at 11000 milivolts
 	{
