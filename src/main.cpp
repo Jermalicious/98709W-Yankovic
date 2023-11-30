@@ -11,13 +11,13 @@
 	pros::Controller controller (pros::E_CONTROLLER_MASTER);
 
 //define miscellaneous motors, pneumatics, and tracking wheels 
-	pros::Motor cata_motor (1,true);		//Catapult mortor
-	pros::Motor left_intake(7,true);		//the left intake motor
-	pros::Motor right_intake(5,false); 		//the right intake motor
+	pros::Motor flywheel_motor (15,true);		//Catapult mortor
+	pros::Motor left_intake(19,true);		//the left intake motor
+	pros::Motor right_intake(7,false); 		//the right intake motor
 	pros::ADIDigitalOut wings (1,LOW); 		//the pneumatics to extend the pusher wings
-	pros::Rotation tracking_wheel_X (13,false);
+	pros::Rotation tracking_wheel_X (13,false);	//Tracking wheels
 	pros::Rotation tracking_wheel_Y	(12,false);
-	pros::Imu inertial_sensor (18);
+	pros::Imu inertial_sensor (14);
 
 //define drivetrain motors
 	pros::Motor left_top_drive (2,true);
@@ -42,9 +42,11 @@ const double forward_kP = 500;
 const double forward_kI = 0;
 const double forward_kD = 0;
 
-const double turn_kP = .5;
-const double turn_kI = .0001;
-const double turn_kD = .1;
+const double turn_kP = 500;
+const double turn_kI = .1;
+const double turn_kD = 10;
+
+bool toggle_a = 0;
 
 
 
@@ -123,15 +125,27 @@ void competition_initialize()
 	
 void autonomous()
 	{
-		pros::lcd::print(2,"bruh");
-		//Basic PID tuning routine
-		ForwardPID(12,500,6,50000);
+		// //Basic PID tuning routine
+		// ForwardPID(12,500,6,50000);
 
-		TurnPID(180,500,45,50000);
+		// TurnPID(180,500,45,50000);
 
-		ForwardPID(12,500,6,50000);
+		// ForwardPID(12,500,6,50000);
 
-		TurnPID(0,500,45,50000);
+		// TurnPID(0,500,45,50000);
+
+//PRE-MATCH AUTON:
+		inertial_sensor.set_rotation(-90);
+		intake = 95;
+		ForwardPID (6);
+		intake = 0;
+		ForwardPID(-36);
+		TurnPID(-135);
+		ForwardPID(-48);
+		TurnPID(-180);
+		ForwardPID(-24);
+
+
 
 
 
