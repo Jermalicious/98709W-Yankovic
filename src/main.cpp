@@ -8,16 +8,16 @@
 	okapi::Rate loopRate;
 
 // define controller
-	pros::Controller controller(pros::E_CONTROLLER_MASTER);
+	pros::Controller controller (pros::E_CONTROLLER_MASTER);
 
 //define miscellaneous motors, pneumatics, and tracking wheels 
-	pros::Motor cata_motor (15,true);		//Catapult mortor
-	pros::Motor left_intake(19,true);		//the left intake motor
-	pros::Motor right_intake(7,false); 		//the right intake motor
+	pros::Motor cata_motor (1,true);		//Catapult mortor
+	pros::Motor left_intake(7,true);		//the left intake motor
+	pros::Motor right_intake(5,false); 		//the right intake motor
 	pros::ADIDigitalOut wings (1,LOW); 		//the pneumatics to extend the pusher wings
-	pros::Rotation tracking_wheel_X (13,false);	//Tracking wheels
+	pros::Rotation tracking_wheel_X (13,false);
 	pros::Rotation tracking_wheel_Y	(12,false);
-	pros::Imu inertial_sensor (14);
+	pros::Imu inertial_sensor (18);
 
 //define drivetrain motors
 	pros::Motor left_top_drive (2,true);
@@ -28,23 +28,23 @@
 	pros::Motor right_front_drive (8,false);
 
 //define drivetrain motor groups
-	pros::Motor_Group left_drivetrain({left_top_drive, left_back_drive, left_front_drive}); 	//the three motors for the left side of the drivetrain
-	pros::Motor_Group right_drivetrain({right_top_drive, right_back_drive, right_front_drive}); //the three motors for the right side of the drivetrain
-	pros::Motor_Group intake({left_intake, right_intake});
+	pros::Motor_Group left_drivetrain	({left_top_drive,	left_back_drive,	left_front_drive});  //the three motors for the left side of the drivetrain
+	pros::Motor_Group right_drivetrain	({right_top_drive,	right_back_drive,	right_front_drive}); //the three motors for the right side of the drivetrain
+	pros::Motor_Group intake			({left_intake,		right_intake}); 						 //both intake motors
 
 //declare functions so taht we can define them at the bottom of this page
-void ForwardPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 7, int timeout_msec = -1);
-void TurnPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 45, int timeout_msec = -1);
-
+void ForwardPID	(float target, float settle_time_msec = 500, float kI_start_at_error_value = 7,  int timeout_msec = -1);
+void TurnPID	(float target, float settle_time_msec = 500, float kI_start_at_error_value = 45, int timeout_msec = -1);
+void flywheel_bang_bang ();
 
 //declare global variables
 const double forward_kP = 500;
-const double forward_kI = 0; //1;
-const double forward_kD = 0; //10;
+const double forward_kI = 0;
+const double forward_kD = 0;
 
-const double turn_kP = 500;
-const double turn_kI = .1;
-const double turn_kD = 10;
+const double turn_kP = .5;
+const double turn_kI = .0001;
+const double turn_kD = .1;
 
 
 
@@ -76,6 +76,11 @@ void initialize() {
 	pros::lcd::set_text(1, "Hello PROS User!");
 
 	pros::lcd::register_btn1_cb(on_center_button);
+
+	while(inertial_sensor.is_calibrating())
+	{
+		pros::delay(20);
+	}
 
 	autonomous();
 }
@@ -120,11 +125,17 @@ void autonomous()
 	{
 		pros::lcd::print(2,"bruh");
 		//Basic PID tuning routine
-		inertial_sensor.reset();
-		
+		ForwardPID(12,500,6,50000);
+
+		TurnPID(180,500,45,50000);
+
+		ForwardPID(12,500,6,50000);
+
+		TurnPID(0,500,45,50000);
 
 
-		
+
+//SKILLS RUN:		
 		// for(int i = 0; i < 9; i++) //runs the fire routine 42 times (two extra for now)
 		// {
 		// 	cata_motor.move_relative(150 * 3, 99); //180 Degrees = 1 fire; 150 ticks (red motor encoder units) = 180 degrees; gear_ratio = 36:12 = 3:1
@@ -150,38 +161,6 @@ void autonomous()
 
 		// ForwardPID(3 * 12); //score some triballs, baby!
 
-							//the movement to move toward the bar and move to parallel with the goal can be
-							//replaced in the future for one diagonal movement, but for simplicity's sake
-							//I'll keep it as two right angle movements for now
-
-							//see how this works, then backup and try to shove more triballs under the goal
-
-
-
-
-	//winpoint pre-match autonomous outline (with terrible old functions, replace all)
-		// PIDForward forward(.8, .01, .2);
-		// PIDTurn turn(.8, .01, .2);
-		// inertial_sensor.reset();
-
-		// drive(forward.run(tracking_wheel_Y, 48)); //drive to middle
-
-		// drive(turn.run(inertial_sensor.get_rotation(), 90)); //turn to goal
-
-		// drive(forward.run(tracking_wheel_Y, 6)); //drive to goal
-
-		// intake = -95; //deopist tri-ball
-		// pros::delay(500);
-		// intake.brake();
-
-
-		// drive(forward.run(tracking_wheel_Y, -6)); //back up from goal
-
-		// drive(turn.run(inertial_sensor.get_rotation(), 53.1)); //turn toward elevation bar
-
-		// wings.set_value(HIGH); //extend wings to catch on bar
-
-		// drive(forward.run(tracking_wheel_Y, 60)); //drive to the bar
 	}
 	
 
@@ -201,10 +180,8 @@ void autonomous()
 
 
 void opcontrol() {
-
- 
-//test printing stuff
-	// pros::lcd::print(3,"%s",test.get_bob());
+//Set button function varialbe values
+ flywheel_bang_bang();
 
 //decalre variables
 
@@ -231,22 +208,19 @@ float const drive_turn_constant = 1.4;
 
 
 	//intake controller
-		if (controller.get_digital(DIGITAL_R1)) { //forward
-
+		if (controller.get_digital(DIGITAL_L1)) //forward
+		{ 
 			intake = 95;
-
-		} else if (controller.get_digital(DIGITAL_L1)) { //reverse
-
+		} else if (controller.get_digital(DIGITAL_R1)) //reverse
+		{ 
 			intake = -95;
-
-		} else {
-
+		} else 
+		{
 			intake.brake();
-
 		}
 
 	//wings controller
-		if (controller.get_digital(DIGITAL_X))
+		if (controller.get_digital(DIGITAL_R2))
 		{ 
 			wings.set_value(HIGH);
 		} else
@@ -254,21 +228,26 @@ float const drive_turn_constant = 1.4;
 			wings.set_value(LOW);
 		}
 
+		if (controller.get_digital_new_press(DIGITAL_A)){ //function to toggle flywheel when A is pressed
+			toggle_a = !toggle_a;
+		}
+
 	//Sets drivetrain speed in % (capped at 95%)
 		drive_forward = controller.get_analog(ANALOG_LEFT_Y);
 		drive_turn = controller.get_analog(ANALOG_RIGHT_X);
 
-		left_drive_speed = customMath.drive_cubic(drive_forward * drive_turn_constant + drive_turn);
+		left_drive_speed  = customMath.drive_cubic(drive_forward * drive_turn_constant + drive_turn);
 		right_drive_speed = customMath.drive_cubic(drive_forward * drive_turn_constant - drive_turn);
 
-		left_drivetrain = left_drive_speed;
+		left_drivetrain  = left_drive_speed;
 		right_drivetrain = right_drive_speed;
 
 
-		pros::delay(20);
+		loopRate.delay(okapi::QFrequency(50.0)); //basically a perfectly even 20 ms between starts of each iteration
 	
 	}
 }
+
 
 
 
@@ -293,8 +272,6 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 	{
 		timeout_msec = error * 30 + 500; //sets the timeout msecs to 30 times the error plus a baseline 500 ms
 	}
-
-	
 
 
     while(timer <= timeout_msec && settle_timer <= settle_time_msec)
@@ -344,10 +321,7 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 
     loopRate.delay(okapi::QFrequency(50.0)); // Delay to maintain the specified loop rate of 50 cycles per second (20 ms between start of cycles)
 }
-	
-
 }
-
 
 
 void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value, int timeout_msec)
@@ -370,7 +344,7 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 	}
 
 
-    while(timer < timeout_msec && settle_timer < settle_time_msec)
+while(timer < timeout_msec && settle_timer < settle_time_msec)
     {
 	sensor = inertial_sensor.get_rotation();
 
@@ -412,4 +386,21 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 	loopRate.delay(okapi::QFrequency(50.0)); // Delay to maintain the specified loop rate of 50 cycles per second
 
     }
+}
+
+
+void flywheel_bang_bang () //BANG BANG control
+{ 
+while(true) {
+	if(toggle_a) {
+		int flywheel_rpm;// = flywheel_rotation
+		
+		if (flywheel_rpm < 3900) {
+			flywheel_motor.move_voltage(11500);
+		}
+		else {
+			flywheel_motor.move_voltage(0);
+		}
+	}
+}
 }
