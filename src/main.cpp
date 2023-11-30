@@ -13,11 +13,11 @@
 //define miscellaneous motors, pneumatics, and tracking wheels 
 	pros::Motor flywheel_motor (15,true);		//Catapult mortor
 	pros::Motor left_intake(19,true);		//the left intake motor
-	pros::Motor right_intake(7,false); 		//the right intake motor
+	pros::Motor right_intake(14,false); 		//the right intake motor
 	pros::ADIDigitalOut wings (1,LOW); 		//the pneumatics to extend the pusher wings
 	pros::Rotation tracking_wheel_X (13,false);	//Tracking wheels
 	pros::Rotation tracking_wheel_Y	(12,false);
-	pros::Imu inertial_sensor (14);
+	pros::Imu inertial_sensor (7);
 
 //define drivetrain motors
 	pros::Motor left_top_drive (2,true);
