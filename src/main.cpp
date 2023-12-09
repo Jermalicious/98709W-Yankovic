@@ -125,25 +125,16 @@ void competition_initialize()
 	
 void autonomous()
 	{
-		// //Basic PID tuning routine
-		// ForwardPID(12,500,6,50000);
-
-		// TurnPID(180,500,45,50000);
-
-		// ForwardPID(12,500,6,50000);
-
-		// TurnPID(0,500,45,50000);
-
 //PRE-MATCH AUTON:
-		inertial_sensor.set_rotation(-90);
+		inertial_sensor.set_rotation(-90); //Sets 0 degrees to be infront of drive box
 		intake = 95;
-		ForwardPID (6);
+		ForwardPID (6); //intake ball under the bar
 		intake = 0;
-		ForwardPID(-36);
+		ForwardPID(-36); //go backwards
 		TurnPID(-135);
-		ForwardPID(-48);
+		ForwardPID(-48); //push team ball behind to the loading ground bar
 		TurnPID(-180);
-		ForwardPID(-24);
+		ForwardPID(-24); //push team ball into goal
 
 
 
@@ -222,10 +213,10 @@ float const drive_turn_constant = 1.4;
 
 
 	//intake controller
-		if (controller.get_digital(DIGITAL_L1)) //forward
+		if (controller.get_digital(DIGITAL_R1)) //forward
 		{ 
 			intake = 95;
-		} else if (controller.get_digital(DIGITAL_R1)) //reverse
+		} else if (controller.get_digital(DIGITAL_R2)) //reverse
 		{ 
 			intake = -95;
 		} else 
