@@ -185,8 +185,6 @@ void autonomous()
 
 
 void opcontrol() {
-//Set button function varialbe values
- flywheel_bang_bang();
 
 //decalre variables
 
@@ -211,6 +209,13 @@ float const drive_turn_constant = 1.4;
 		                 (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
 		                 (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
 
+	//Flywheel controller
+		if(controller.get_digital(DIGITAL_L1)){
+			flywheel_bang_bang();
+		}
+		else {
+			flywheel_motor.move_voltage(0);
+		}
 
 	//intake controller
 		if (controller.get_digital(DIGITAL_R1)) //forward
