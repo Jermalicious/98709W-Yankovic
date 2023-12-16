@@ -13,11 +13,11 @@
 //define miscellaneous motors, pneumatics, and tracking wheels 
 	pros::Motor flywheel_motor (15,true);		//Catapult mortor
 	pros::Motor left_intake(19,true);		//the left intake motor
-	pros::Motor right_intake(7,false); 		//the right intake motor
+	pros::Motor right_intake(14,false); 		//the right intake motor
 	pros::ADIDigitalOut wings (1,LOW); 		//the pneumatics to extend the pusher wings
 	pros::Rotation tracking_wheel_X (13,false);	//Tracking wheels
 	pros::Rotation tracking_wheel_Y	(12,false);
-	pros::Imu inertial_sensor (14);
+	pros::Imu inertial_sensor (7);
 
 //define drivetrain motors
 	pros::Motor left_top_drive (2,true);
@@ -79,12 +79,17 @@ void initialize() {
 
 	pros::lcd::register_btn1_cb(on_center_button);
 
+	int calibrate_timer = 0;
+
 	while(inertial_sensor.is_calibrating())
 	{
+		pros::lcd::print(2, "inertial taken %d seconds to calibrate", calibrate_timer);
+		calibrate_timer += 20;
 		pros::delay(20);
+		
 	}
 
-	autonomous();
+	// autonomous();
 }
 
 /**
@@ -194,8 +199,9 @@ void autonomous()
 
 
 void opcontrol() {
+	pros::lcd::set_text(2, "opcontrol called");
 //Set button function varialbe values
- flywheel_bang_bang();
+//  flywheel_bang_bang();
 
 //decalre variables
 
@@ -404,17 +410,22 @@ while(timer < timeout_msec && settle_timer < settle_time_msec)
 
 
 void flywheel_bang_bang () //BANG BANG control
-{ 
+{
+// pros::lcd::set_text(2, "opcontrol-flywheel called");
+int flywheel_counter = 0;
+
 while(true) {
-	if(toggle_a) {
-		int flywheel_rpm;// = flywheel_rotation
+	if (toggle_a) flywheel_motor = 95;
+	pros::lcd::print(2, "opcontrol-flywheel called %d", flywheel_counter);
+	// if(toggle_a) {
+	// 	int flywheel_rpm;// = flywheel_rotation
 		
-		if (flywheel_rpm < 3900) {
-			flywheel_motor.move_voltage(11500);
-		}
-		else {
-			flywheel_motor.move_voltage(0);
-		}
-	}
+	// 	if (flywheel_rpm < 3900) {
+	// 		flywheel_motor.move_voltage(11500);
+	// 	}
+	// 	else {
+	// 		flywheel_motor.move_voltage(0);
+	// 	}
+	// }
 }
 }
