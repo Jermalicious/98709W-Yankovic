@@ -17,7 +17,8 @@
 	pros::ADIDigitalOut wings (1,LOW); 		//the pneumatics to extend the pusher wings
 	pros::Rotation tracking_wheel_X (13,false);	//Tracking wheels
 	pros::Rotation tracking_wheel_Y	(12,false);
-	pros::Imu inertial_sensor (7);
+	pros::Imu inertial_sensor (18);
+	pros::Rotation flywheel_sensor (7,false);
 
 //define drivetrain motors
 	pros::Motor left_top_drive (2,true);
@@ -46,7 +47,7 @@ const double turn_kP = 500;
 const double turn_kI = .1;
 const double turn_kD = 10;
 
-bool toggle_a = 0;
+bool toggle_flywheel = 0;
 
 
 
@@ -130,25 +131,16 @@ void competition_initialize()
 	
 void autonomous()
 	{
-		// //Basic PID tuning routine
-		// ForwardPID(12,500,6,50000);
-
-		// TurnPID(180,500,45,50000);
-
-		// ForwardPID(12,500,6,50000);
-
-		// TurnPID(0,500,45,50000);
-
 //PRE-MATCH AUTON:
-		inertial_sensor.set_rotation(-90);
+		inertial_sensor.set_rotation(-90); //Sets 0 degrees to be infront of drive box
 		intake = 95;
-		ForwardPID (6);
+		ForwardPID (6); //intake ball under the bar
 		intake = 0;
-		ForwardPID(-36);
+		ForwardPID(-36); //go backwards
 		TurnPID(-135);
-		ForwardPID(-48);
+		ForwardPID(-48); //push team ball behind to the loading ground bar
 		TurnPID(-180);
-		ForwardPID(-24);
+		ForwardPID(-24); //push team ball into goal
 
 
 
@@ -199,9 +191,9 @@ void autonomous()
 
 
 void opcontrol() {
-	pros::lcd::set_text(2, "opcontrol called");
-//Set button function varialbe values
-//  flywheel_bang_bang();
+
+//start tasks
+pros::Task flywheel_task(flywheel_bang_bang);
 
 //decalre variables
 
@@ -226,12 +218,19 @@ float const drive_turn_constant = 1.4;
 		                 (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
 		                 (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
 
+	//Flywheel controller
+		if(controller.get_digital(DIGITAL_L1)){
+			flywheel_bang_bang();
+		}
+		else {
+			flywheel_motor.move_voltage(0);
+		}
 
 	//intake controller
-		if (controller.get_digital(DIGITAL_L1)) //forward
+		if (controller.get_digital(DIGITAL_R1)) //forward
 		{ 
 			intake = 95;
-		} else if (controller.get_digital(DIGITAL_R1)) //reverse
+		} else if (controller.get_digital(DIGITAL_R2)) //reverse
 		{ 
 			intake = -95;
 		} else 
@@ -240,7 +239,7 @@ float const drive_turn_constant = 1.4;
 		}
 
 	//wings controller
-		if (controller.get_digital(DIGITAL_R2))
+		if (controller.get_digital(DIGITAL_A))
 		{ 
 			wings.set_value(HIGH);
 		} else
@@ -249,7 +248,7 @@ float const drive_turn_constant = 1.4;
 		}
 
 		if (controller.get_digital_new_press(DIGITAL_A)){ //function to toggle flywheel when A is pressed
-			toggle_a = !toggle_a;
+			toggle_flywheel = !toggle_flywheel;
 		}
 
 	//Sets drivetrain speed in % (capped at 95%)
@@ -415,17 +414,16 @@ void flywheel_bang_bang () //BANG BANG control
 int flywheel_counter = 0;
 
 while(true) {
-	if (toggle_a) flywheel_motor = 95;
-	pros::lcd::print(2, "opcontrol-flywheel called %d", flywheel_counter);
-	// if(toggle_a) {
-	// 	int flywheel_rpm;// = flywheel_rotation
+	if(toggle_flywheel) {
+		int flywheel_rpm;// = flywheel_rotation
 		
-	// 	if (flywheel_rpm < 3900) {
-	// 		flywheel_motor.move_voltage(11500);
-	// 	}
-	// 	else {
-	// 		flywheel_motor.move_voltage(0);
-	// 	}
-	// }
+		if (flywheel_rpm < 3900) {
+			flywheel_motor.move_voltage(11500);
+		}
+		else {
+			flywheel_motor.move_voltage(0);
+		}
+	}
+	loopRate.delay(okapi::QFrequency(50.0)); //runs exactly 20ms between starts= of each iteration
 }
 }
