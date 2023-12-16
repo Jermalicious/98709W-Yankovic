@@ -17,7 +17,8 @@
 	pros::ADIDigitalOut wings (1,LOW); 		//the pneumatics to extend the pusher wings
 	pros::Rotation tracking_wheel_X (13,false);	//Tracking wheels
 	pros::Rotation tracking_wheel_Y	(12,false);
-	pros::Imu inertial_sensor (7);
+	pros::Imu inertial_sensor (18);
+	pros::Rotation flywheel_sensor (7,false);
 
 //define drivetrain motors
 	pros::Motor left_top_drive (2,true);
@@ -46,7 +47,7 @@ const double turn_kP = 500;
 const double turn_kI = .1;
 const double turn_kD = 10;
 
-bool toggle_a = 0;
+bool toggle_flywheel = 0;
 
 
 
@@ -186,6 +187,9 @@ void autonomous()
 
 void opcontrol() {
 
+//start tasks
+pros::Task flywheel_task(flywheel_bang_bang);
+
 //decalre variables
 
 float drive_forward;
@@ -230,7 +234,7 @@ float const drive_turn_constant = 1.4;
 		}
 
 	//wings controller
-		if (controller.get_digital(DIGITAL_R2))
+		if (controller.get_digital(DIGITAL_A))
 		{ 
 			wings.set_value(HIGH);
 		} else
@@ -239,7 +243,7 @@ float const drive_turn_constant = 1.4;
 		}
 
 		if (controller.get_digital_new_press(DIGITAL_A)){ //function to toggle flywheel when A is pressed
-			toggle_a = !toggle_a;
+			toggle_flywheel = !toggle_flywheel;
 		}
 
 	//Sets drivetrain speed in % (capped at 95%)
@@ -402,7 +406,7 @@ while(timer < timeout_msec && settle_timer < settle_time_msec)
 void flywheel_bang_bang () //BANG BANG control
 { 
 while(true) {
-	if(toggle_a) {
+	if(toggle_flywheel) {
 		int flywheel_rpm;// = flywheel_rotation
 		
 		if (flywheel_rpm < 3900) {
@@ -412,5 +416,6 @@ while(true) {
 			flywheel_motor.move_voltage(0);
 		}
 	}
+	loopRate.delay(okapi::QFrequency(50.0)); //runs exactly 20ms between starts= of each iteration
 }
 }
