@@ -49,11 +49,14 @@ const double turn_kD = 10;
 
 bool toggle_flywheel = 0;
 
+
+double robot_angle; //"θ" in odom paper
+double robot_position[2] = {0,0}; //[ x , y ]
+
 double Ty; //initialize //"Tr" in odom paper, offset from vertical tracking wheel to tracking center
 double Tx; //initialize //"Ts" in odom paper, offset from horizontal tracking wheel to tracking center
-double y_arc; //"ΔR" in odom paper
 double x_arc; //"ΔS" in odom paper
-
+double y_arc; //"ΔR" in odom paper
 
 void print_task_test() 
 {
@@ -443,9 +446,6 @@ void flywheel_bang_bang() // BANG BANG control
 
 void odometry()
 {
-	double theta;
-	double position[2] = {0,0}; //[ x , y ]
-
 	double x_wheel_position;
 	double prev_x_wheel_position = 0;
 	double y_wheel_position;
@@ -454,7 +454,7 @@ void odometry()
 	while(true)
 	{
 		// Absolute Angle //////////////////////////////////////////////////////////////
-			theta = inertial_sensor.get_rotation();
+			robot_angle = inertial_sensor.get_rotation();
 		/////////////////////////////////////////////////////////////
 
 		// Absolute Position //////////////////////////////////////////////////////////////
@@ -464,8 +464,8 @@ void odometry()
 			x_arc = x_wheel_position - prev_x_wheel_position;
 			y_arc = y_wheel_position - prev_y_wheel_position;
 
-			position[0] = 2*std::sin(theta/2) * (x_arc/theta + Tx); //x
-			position[1] = 2*std::sin(theta/2) * (y_arc/theta + Ty); //y
+			robot_position[0] = 2*std::sin(robot_angle/2) * (x_arc/robot_angle + Tx); //x
+			robot_position[1] = 2*std::sin(robot_angle/2) * (y_arc/robot_angle + Ty); //y
 		
 
 			prev_x_wheel_position = x_wheel_position;
