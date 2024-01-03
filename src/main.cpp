@@ -55,8 +55,10 @@ double robot_position[2] = {0,0}; //[ x , y ]
 
 double Ty; //initialize //"Tr" in odom paper, offset from vertical tracking wheel to tracking center
 double Tx; //initialize //"Ts" in odom paper, offset from horizontal tracking wheel to tracking center
-double x_arc; //"ΔS" in odom paper
 double y_arc; //"ΔR" in odom paper
+	// SPACE HAS TO BE HERE  or the x_arc says ""ΔR" in odom paper" when you hover over it for some reason
+double x_arc; //"ΔS" in odom paper
+
 
 void print_task_test() 
 {
