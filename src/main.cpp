@@ -15,8 +15,8 @@ pros::Motor flywheel_motor(15, false);		// Catapult mortor
 pros::Motor left_intake(19, true);			// the left intake motor
 pros::Motor right_intake(14, false);		// the right intake motor
 pros::ADIDigitalOut wings(1, LOW);			// the pneumatics to extend the pusher wings
-pros::Rotation tracking_wheel_X(13, false); // Tracking wheels
-pros::Rotation tracking_wheel_Y(12, false);
+pros::Rotation tracking_wheel_horizontal(13, false);
+pros::Rotation tracking_wheel_vertical(12, false);
 pros::Imu inertial_sensor(6);
 pros::Rotation flywheel_sensor(7, true);
 
@@ -48,6 +48,11 @@ const double turn_kI = .1;
 const double turn_kD = 10;
 
 bool toggle_flywheel = 0;
+
+double Ty; //initialize //"Tr" in odom paper, offset from vertical tracking wheel to tracking center
+double Tx; //initialize //"Ts" in odom paper, offset from horizontal tracking wheel to tracking center
+double y_arc; //"ΔR" in odom paper
+double x_arc; //"ΔS" in odom paper
 
 
 void print_task_test() 
@@ -275,10 +280,10 @@ void opcontrol()
 void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_value, int timeout_msec)
 {
 
-	tracking_wheel_Y.reset_position();
+	tracking_wheel_vertical.reset_position();
 	int sensor;
 
-	float error = target - tracking_wheel_Y.get_position() / 360 * (2.75 * 3.14159);
+	float error = target - tracking_wheel_vertical.get_position() / 360 * (2.75 * 3.14159);
 	float prev_error;
 	float integral;
 	float derivative;
@@ -297,7 +302,7 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 	while (timer <= timeout_msec && settle_timer <= settle_time_msec)
 	{
 
-		sensor = tracking_wheel_Y.get_position();
+		sensor = tracking_wheel_vertical.get_position();
 
 		// pros::lcd::print(2,"tracking wheel: %d",sensor);
 		// pros::lcd::print(3,"error: %f",error);
@@ -338,7 +343,7 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 
 		timer += 20;
 
-		loopRate.delay(okapi::QFrequency(50.0)); // Delay to maintain the specified loop rate of 50 cycles per second (20 ms between start of cycles)
+		pros::delay(20);
 	}
 }
 
@@ -400,7 +405,7 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 
 		timer += 20;
 
-		loopRate.delay(okapi::QFrequency(50.0)); // Delay to maintain the specified loop rate of 50 cycles per second
+		pros::delay(20);
 	}
 }
 
@@ -432,6 +437,42 @@ void flywheel_bang_bang() // BANG BANG control
 		pros::lcd::print(4,"flywheel rpm (2): %f",(float)flywheel_sensor.get_velocity() / 360 * 60);
 		flywheel_counter++;
 		pros::delay(20);
-		//loopRate.delay(okapi::QFrequency(50.0)); // runs exactly 20ms between starts= of each iteration
+		//loopRate.delay(okapi::QFrequency(50.0)); // runs exactly 20ms between starts of each iteration
 	}
+}
+
+void odometry()
+{
+	double theta;
+	double position[2] = {0,0}; //[ x , y ]
+
+	double x_wheel_position;
+	double prev_x_wheel_position = 0;
+	double y_wheel_position;
+	double prev_y_wheel_position = 0;
+
+	while(true)
+	{
+		// Absolute Angle //////////////////////////////////////////////////////////////
+			theta = inertial_sensor.get_rotation();
+		/////////////////////////////////////////////////////////////
+
+		// Absolute Position //////////////////////////////////////////////////////////////
+			x_wheel_position = tracking_wheel_horizontal.get_position() / 360 * (2.75 * 3.14159);
+			y_wheel_position = tracking_wheel_vertical.get_position() / 360 * (2.75 * 3.14159);
+
+			x_arc = x_wheel_position - prev_x_wheel_position;
+			y_arc = y_wheel_position - prev_y_wheel_position;
+
+			position[0] = 2*std::sin(theta/2) * (x_arc/theta + Tx); //x
+			position[1] = 2*std::sin(theta/2) * (y_arc/theta + Ty); //y
+		
+
+			prev_x_wheel_position = x_wheel_position;
+			prev_y_wheel_position = y_wheel_position;
+		/////////////////////////////////////////////////////////////
+
+		pros::delay(20);
+	}
+
 }
