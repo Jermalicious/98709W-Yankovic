@@ -11,10 +11,10 @@ okapi::Rate loopRate;
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 // define miscellaneous motors, pneumatics, and tracking wheels
-pros::Motor flywheel_motor(15, false);		// Catapult mortor
-pros::Motor left_intake(19, true);			// the left intake motor
-pros::Motor right_intake(14, false);		// the right intake motor
-pros::ADIDigitalOut wings(1, LOW);			// the pneumatics to extend the pusher wings
+pros::Motor flywheel_motor(15, false);		// Flywheel mortor
+pros::Motor left_intake(19, true);			// Left intake motor
+pros::Motor right_intake(14, false);		// Right intake motor
+pros::ADIDigitalOut wings(1, LOW);			// Pneumatics to extend the pusher wings
 pros::Rotation tracking_wheel_horizontal(13, false);
 pros::Rotation tracking_wheel_vertical(12, false);
 pros::Imu inertial_sensor(6);
@@ -455,11 +455,11 @@ void odometry()
 
 	while(true)
 	{
-		// Absolute Angle //////////////////////////////////////////////////////////////
+		// Absolute Angle ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 			robot_angle = inertial_sensor.get_rotation();
-		/////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		// Absolute Position //////////////////////////////////////////////////////////////
+		// Absolute Position /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 			x_wheel_position = tracking_wheel_horizontal.get_position() / 360 * (2.75 * 3.14159);
 			y_wheel_position = tracking_wheel_vertical.get_position() / 360 * (2.75 * 3.14159);
 
