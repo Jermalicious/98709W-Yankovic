@@ -11,7 +11,7 @@ okapi::Rate loopRate;
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 // define miscellaneous motors, pneumatics, and tracking wheels
-pros::Motor flywheel_motor(15, false);		// Flywheel mortor
+pros::Motor flywheel_motor(15, false);		// Flywheel motor
 pros::Motor left_intake(19, true);			// Left intake motor
 pros::Motor right_intake(14, false);		// Right intake motor
 pros::ADIDigitalOut wings(1, LOW);			// Pneumatics to extend the pusher wings
@@ -37,6 +37,8 @@ pros::Motor_Group intake({left_intake, right_intake});										// both intake m
 void ForwardPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 7, int timeout_msec = -1);
 void TurnPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 45, int timeout_msec = -1);
 void flywheel_bang_bang();
+void odometry();
+void goTo();
 
 // declare global variables
 const double forward_kP = 500;
@@ -53,25 +55,11 @@ bool toggle_flywheel = 0;
 double robot_angle; //"θ" in odom paper
 double robot_position[2] = {0,0}; //[ x , y ]
 
-double Ty; //initialize //"Tr" in odom paper, offset from vertical tracking wheel to tracking center
-double Tx; //initialize //"Ts" in odom paper, offset from horizontal tracking wheel to tracking center
+double Ty = 0.25; //initialize //"Tr" in odom paper, offset from vertical tracking wheel to tracking center
+double Tx = -2.5; //"Ts" in odom paper, offset from horizontal tracking wheel to tracking center. It's negative because left is -x direction
 double y_arc; //"ΔR" in odom paper
 	// SPACE HAS TO BE HERE  or the x_arc says ""ΔR" in odom paper" when you hover over it for some reason
 double x_arc; //"ΔS" in odom paper
-
-
-void print_task_test() 
-{
-	int print_task_counter = 0;
-
-	while(true)
-	{
-		pros::lcd::print(2, "I have been called %d times", print_task_counter);
-		pros::delay(500);
-
-		print_task_counter++;
-	}
-}
 
 
 /**
@@ -212,6 +200,7 @@ void opcontrol()
 {
 
 	// start tasks
+	pros::Task odometry_task(odometry);
 	pros::Task flywheel_task(flywheel_bang_bang);
 	// pros::Task print_test(print_task_test);
 
@@ -234,9 +223,9 @@ void opcontrol()
 	{
 
 		// printing on the brain screen
-		//  pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
-		//                   (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
-		//                   (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
+		 pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
+		                  (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
+		                  (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
 
 		// intake controller
 		if (controller.get_digital(DIGITAL_R1)) // forward
@@ -437,9 +426,8 @@ void flywheel_bang_bang() // BANG BANG control
 		{
 			flywheel_motor.brake();
 		}
-		pros::lcd::print(2,"flywheel iteration #: %d",flywheel_counter);
+		// pros::lcd::print(2,"flywheel iteration #: %d",flywheel_counter);
 		pros::lcd::print(3,"flywheel rpm: %d",flywheel_rpm);
-		pros::lcd::print(4,"flywheel rpm (2): %f",(float)flywheel_sensor.get_velocity() / 360 * 60);
 		flywheel_counter++;
 		pros::delay(20);
 		//loopRate.delay(okapi::QFrequency(50.0)); // runs exactly 20ms between starts of each iteration
@@ -453,13 +441,15 @@ void odometry()
 	double y_wheel_position;
 	double prev_y_wheel_position = 0;
 
+	int odom_counter = 0;
+
 	while(true)
 	{
-		// Absolute Angle ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Absolute Angle //////////////////////////////////////////////////////////////
 			robot_angle = inertial_sensor.get_rotation();
-		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		/////////////////////////////////////////////////////////////
 
-		// Absolute Position /////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Absolute Position //////////////////////////////////////////////////////////////
 			x_wheel_position = tracking_wheel_horizontal.get_position() / 360 * (2.75 * 3.14159);
 			y_wheel_position = tracking_wheel_vertical.get_position() / 360 * (2.75 * 3.14159);
 
@@ -474,7 +464,38 @@ void odometry()
 			prev_y_wheel_position = y_wheel_position;
 		/////////////////////////////////////////////////////////////
 
+		pros::lcd::print(4,"position (x,y): (%lf,%lf)",robot_position[0],robot_position[1]);
+		pros::lcd::print(5,"angle radians: %lf",robot_angle);
+		pros::lcd::print(2,"odom_iterator: %d",odom_counter);
+
+
+		odom_counter++;
 		pros::delay(20);
+	}
+}
+
+void goTo(float goal_x,float goal_y)
+{
+	float relative_x; //inches
+	float relative_y; //inches
+	float drive_distance; //inches
+
+	float drive_angle; //radians
+
+	while(true) //give this an end condition
+	{
+	relative_x = goal_x - robot_position[0];
+	relative_y = goal_y - robot_position[1];
+	drive_distance = sqrt(pow(relative_x,2) + pow(relative_y,2));
+
+	drive_angle = atan(relative_y / relative_x);
+
+		//pass these into a PID for forward and turning based on the "drive" arguments
+
+
+
+
+
 	}
 
 }
