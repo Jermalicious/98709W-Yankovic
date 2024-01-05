@@ -52,14 +52,14 @@ const double turn_kD = 10;
 bool toggle_flywheel = 0;
 
 
-double robot_angle; //"θ" in odom paper
-double robot_position[2] = {0,0}; //[ x , y ]
+double robot_angle; //"θ" in odom paper in centidegrees ex.: 180.00
+double robot_position[2] = {0,0}; //[ x , y ] in inches
 
-double Ty = 0.25; //initialize //"Tr" in odom paper, offset from vertical tracking wheel to tracking center
-double Tx = -2.5; //"Ts" in odom paper, offset from horizontal tracking wheel to tracking center. It's negative because left is -x direction
-double y_arc; //"ΔR" in odom paper
+double Ty = 0.25; //initialize //"Tr" in odom paper, offset from vertical tracking wheel to tracking center in inches
+double Tx = -2.5; //"Ts" in odom paper, offset from horizontal tracking wheel to tracking center in inches. It's negative because left is -x direction 
+double y_arc; //"ΔR" in odom paper in inches
 	// SPACE HAS TO BE HERE  or the x_arc says ""ΔR" in odom paper" when you hover over it for some reason
-double x_arc; //"ΔS" in odom paper
+double x_arc; //"ΔS" in odom paper in inches
 
 
 /**
@@ -474,27 +474,100 @@ void odometry()
 	}
 }
 
-void goTo(float goal_x,float goal_y)
+
+void goTo(float target_x, float target_y, float settle_time_msec, float kI_start_at_error_value, int timeout_msec)
 {
+	//Odom variables
 	float relative_x; //inches
 	float relative_y; //inches
-	float drive_distance; //inches
+	float error_distance; //inches
+	float error_angle; //radians
 
-	float drive_angle; //radians
+	//PID variables for both distance and angle
+	float prev_error_distance;
+	float prev_error_angle;
+	float integral;
+	float derivative;
+	int output_distance;
+	int output_angle;
 
-	while(true) //give this an end condition
+	float settle_distance = 2; // change this value to change what error the PID considers "settled"
+	float settle_angle = 1;
+
+	int timer = 0;
+	int settle_timer = 0;
+
+	if (timeout_msec = -1) // this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
 	{
-	relative_x = goal_x - robot_position[0];
-	relative_y = goal_y - robot_position[1];
-	drive_distance = sqrt(pow(relative_x,2) + pow(relative_y,2));
+		timeout_msec = error * 30 + 500; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
+	}
 
-	drive_angle = atan(relative_y / relative_x);
+	while(timer < timeout_msec && settle_timer < settle_time_msec) //give this an end condition
+	{
+		// Error from Odom /////////////////////////////////////////////////////////////////////////////
+			relative_x = target_x - robot_position[0];
+			relative_y = target_y - robot_position[1];
 
-		//pass these into a PID for forward and turning based on the "drive" arguments
+			error_distance = sqrt(pow(relative_x,2) + pow(relative_y,2));
+
+/* ASK COACH */			error_angle = atan(relative_y / relative_x); //HOOOOOLD UP, this doesn't reference robot_angle at all, but (at least at 10:00 PM) it seems to work mathematically because the position is already relative to the robot (with the robot centered on the origin), and this is basical precalculus
+		////////////////////////////////////////////////////////////////////////////
+
+		
+		// Distance PID /////////////////////////////////////////////////////////////////////////////
+			if (error_distance < kI_start_at_error_value)
+			{
+				integral += error_distance;
+			}
+
+			derivative = prev_error_distance - error_distance;
+
+			prev_error_distance = error_distance;
+
+			output_distance = forward_kP * (error_distance + forward_kI * integral + forward_kD * derivative);
+		////////////////////////////////////////////////////////////////////////////
 
 
+		// Angle PID /////////////////////////////////////////////////////////////////////////////
+			if (error_angle < kI_start_at_error_value)
+			{
+				integral += error_angle;
+			}
+
+			derivative = prev_error_angle - error_angle;
+
+			prev_error_angle = error_angle;
+
+			output_angle = turn_kP * (error_angle + turn_kI * integral + turn_kD * derivative);
+			////////////////////////////////////////////////////////////////////////////
 
 
+			////reduce output_distance if error_angle is too large? Coach mentioned using cos(error_angle) or something like that
+		
+
+		// cap output at 11000 milivolts (11 volts) ... hard cap or scale instead?
+		if (output > 11000)
+		{
+			output = 11000;
+		}
+
+		// output to drivetrain
+		left_drivetrain.move_voltage(output_distance + output_angle); // output needs to be -12000 to 12000 milivolts
+		right_drivetrain.move_voltage(output_distance - output_angle); 
+
+
+		if (abs(error_distance) < settle_distance && abs(error_angle) < settle_angle) // absolute value so it never goes negative
+		{
+			settle_timer += 20;
+		}
+		else
+		{
+			settle_timer = 0;
+		}
+
+		timer += 20;
+
+		pros::delay(20);
 
 	}
 
