@@ -15,7 +15,7 @@ pros::Motor flywheel_motor(15, false);		// Flywheel motor
 pros::Motor left_intake(19, true);			// Left intake motor
 pros::Motor right_intake(14, false);		// Right intake motor
 pros::ADIDigitalOut wings(1, LOW);			// Pneumatics to extend the pusher wings
-pros::Rotation tracking_wheel_horizontal(13, false);
+pros::Rotation tracking_wheel_horizontal(1, false);
 pros::Rotation tracking_wheel_vertical(12, false);
 pros::Imu inertial_sensor(6);
 pros::Rotation flywheel_sensor(7, true);
@@ -38,7 +38,7 @@ void ForwardPID(float target, float settle_time_msec = 500, float kI_start_at_er
 void TurnPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 45, int timeout_msec = -1);
 void flywheel_bang_bang();
 void odometry();
-void goTo();
+void goTo(float target_x, float target_y, float settle_time_msec, float kI_start_at_angle = 45, float kI_start_at_distance = 7, int timeout_msec = -1);
 
 // declare global variables
 const double forward_kP = 500;
@@ -464,9 +464,9 @@ void odometry()
 			prev_y_wheel_position = y_wheel_position;
 		/////////////////////////////////////////////////////////////
 
-		pros::lcd::print(4,"position (x,y): (%lf,%lf)",robot_position[0],robot_position[1]);
-		pros::lcd::print(5,"angle radians: %lf",robot_angle);
-		pros::lcd::print(2,"odom_iterator: %d",odom_counter);
+		pros::lcd::print(4,"position (x,y): (%f,%f)",robot_position[0],robot_position[1]); //does not work
+		pros::lcd::print(5,"x.get_position(): %d",tracking_wheel_horizontal.get_position());
+		pros::lcd::print(2,"x.get_angle(): %d",tracking_wheel_horizontal.get_angle());
 
 
 		odom_counter++;
@@ -475,13 +475,13 @@ void odometry()
 }
 
 
-void goTo(float target_x, float target_y, float settle_time_msec, float kI_start_at_error_value, int timeout_msec)
+void goTo(float target_x, float target_y, float settle_time_msec, float kI_start_at_angle, float kI_start_at_distance, int timeout_msec)
 {
 	//Odom variables
 	float relative_x; //inches
 	float relative_y; //inches
 	float error_distance; //inches
-	float error_angle; //radians
+	float error_angle; //centidegrees
 
 	//PID variables for both distance and angle
 	float prev_error_distance;
@@ -499,7 +499,7 @@ void goTo(float target_x, float target_y, float settle_time_msec, float kI_start
 
 	if (timeout_msec = -1) // this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
 	{
-		timeout_msec = error * 30 + 500; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
+		timeout_msec = error_angle * 30 + error_distance * 30 + 1000; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
 	}
 
 	while(timer < timeout_msec && settle_timer < settle_time_msec) //give this an end condition
@@ -510,12 +510,12 @@ void goTo(float target_x, float target_y, float settle_time_msec, float kI_start
 
 			error_distance = sqrt(pow(relative_x,2) + pow(relative_y,2));
 
-/* ASK COACH */			error_angle = atan(relative_y / relative_x); //HOOOOOLD UP, this doesn't reference robot_angle at all, but (at least at 10:00 PM) it seems to work mathematically because the position is already relative to the robot (with the robot centered on the origin), and this is basical precalculus
+/* ASK COACH */			error_angle = atan(relative_y / relative_x) / 3.1415 * 180 - robot_angle; //centidegrees
 		////////////////////////////////////////////////////////////////////////////
 
 		
 		// Distance PID /////////////////////////////////////////////////////////////////////////////
-			if (error_distance < kI_start_at_error_value)
+			if (error_distance < kI_start_at_distance)
 			{
 				integral += error_distance;
 			}
@@ -529,7 +529,7 @@ void goTo(float target_x, float target_y, float settle_time_msec, float kI_start
 
 
 		// Angle PID /////////////////////////////////////////////////////////////////////////////
-			if (error_angle < kI_start_at_error_value)
+			if (error_angle < kI_start_at_angle)
 			{
 				integral += error_angle;
 			}
@@ -539,16 +539,22 @@ void goTo(float target_x, float target_y, float settle_time_msec, float kI_start
 			prev_error_angle = error_angle;
 
 			output_angle = turn_kP * (error_angle + turn_kI * integral + turn_kD * derivative);
-			////////////////////////////////////////////////////////////////////////////
+		////////////////////////////////////////////////////////////////////////////
 
 
 			////reduce output_distance if error_angle is too large? Coach mentioned using cos(error_angle) or something like that
 		
 
-		// cap output at 11000 milivolts (11 volts) ... hard cap or scale instead?
-		if (output > 11000)
+		// cap output at 11000 milivolts (11 volts) ... scales linearly to cap max volts at 11 but keep same ratio of power to keep turning
+		if (output_distance > 11000 && output_distance > output_angle)
 		{
-			output = 11000;
+			output_angle /= (output_distance/11000);
+			output_distance /= (output_distance / 11000);
+		}
+		else if (output_angle > 11000 && output_angle > output_distance)
+		{
+			output_angle /= (output_angle/11000);
+			output_distance /= (output_angle / 11000);
 		}
 
 		// output to drivetrain
@@ -570,5 +576,4 @@ void goTo(float target_x, float target_y, float settle_time_msec, float kI_start
 		pros::delay(20);
 
 	}
-
 }
