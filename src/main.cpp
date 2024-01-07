@@ -52,16 +52,6 @@ const double turn_kD = 10;
 bool toggle_flywheel = 0;
 
 
-double robot_angle; //"θ" in odom paper in centidegrees ex.: 180.00
-double robot_position[2] = {0,0}; //[ x , y ] in inches
-
-double Ty = 0.25; //initialize //"Tr" in odom paper, offset from vertical tracking wheel to tracking center in inches
-double Tx = -2.5; //"Ts" in odom paper, offset from horizontal tracking wheel to tracking center in inches. It's negative because left is -x direction 
-double y_arc; //"ΔR" in odom paper in inches
-	// SPACE HAS TO BE HERE  or the x_arc says ""ΔR" in odom paper" when you hover over it for some reason
-double x_arc; //"ΔS" in odom paper in inches
-
-
 /**
  * A callback function for LLEMU's center button.
  *
@@ -91,19 +81,9 @@ void on_center_button()
 void initialize()
 {
 	pros::lcd::initialize();
-	pros::lcd::set_text(1, "Hello PROS User!");
+	// pros::lcd::set_text(1, "Hello PROS User!");
 
 	pros::lcd::register_btn1_cb(on_center_button);
-
-	// int calibrate_timer = 0;
-
-	// while(inertial_sensor.is_calibrating())
-	// {
-	// 	pros::lcd::print(2, "inertial taken %d seconds to calibrate", calibrate_timer/1000);
-	// 	calibrate_timer += 20;
-	// 	pros::delay(20);
-
-	// }
 
 	// autonomous();
 }
@@ -427,7 +407,7 @@ void flywheel_bang_bang() // BANG BANG control
 			flywheel_motor.brake();
 		}
 		// pros::lcd::print(2,"flywheel iteration #: %d",flywheel_counter);
-		pros::lcd::print(3,"flywheel rpm: %d",flywheel_rpm);
+		// pros::lcd::print(3,"flywheel rpm: %d",flywheel_rpm);
 		flywheel_counter++;
 		pros::delay(20);
 		//loopRate.delay(okapi::QFrequency(50.0)); // runs exactly 20ms between starts of each iteration
@@ -436,45 +416,113 @@ void flywheel_bang_bang() // BANG BANG control
 
 void odometry()
 {
-	double x_wheel_position;
-	double prev_x_wheel_position = 0;
-	double y_wheel_position;
-	double prev_y_wheel_position = 0;
-
+	tracking_wheel_horizontal.set_position(0);
+	tracking_wheel_vertical.set_position(0);
 	int odom_counter = 0;
+
+	double absolute_robot_angle; //"θ1" in odom paper, but in degrees here
+	double θ1;
+	double robot_position[2] = {0,0}; //[ x , y ] in inches
+	double Δd[2];
+	double Δdl[2] = {0,0};
+	double Δdl_polar[2]; //{ r, θ }
+
+	double y_offset = 0.25; //initialize //"SR" in odom paper, offset from vertical tracking wheel to tracking center in inches
+	double x_offset = -2.5; //"SS" in odom paper, offset from horizontal tracking wheel to tracking center in inches. It's negative because left is -x direction 
+	double y_arc;
+	double x_arc;
+
+	double Rr = 0; //at the "last reset" in this case the beginning
+	double Sr = 0; //at the "last reset" in this case the beginning
+	double θr = 0;  //at the "last reset" in this case the beginning
+
+	double θm; //average orientation used for converting to field coordinates
+
+	double d0[2] = {0,0}; //previous robot position
+	double θ0; //previous robot angle
+	double prev_tracking_wheel_horizontal;
+	double prev_tracking_wheel_vertical;
+
+	double ΔS = tracking_wheel_vertical.get_position() - prev_tracking_wheel_vertical;
+	double ΔR = tracking_wheel_horizontal.get_position() - prev_tracking_wheel_horizontal;
+	double Δθ; //radians
+	
+
+	//double ΔRr = tracking_wheel_vertical.get_position() - Rr;   //only needed to find angle
+	//double ΔLr = tracking_wheel_horizontal.get_position() - Sr; //only needed to find angle
+
+
+	int calibrate_timer = 0;
+
+	inertial_sensor.reset();
+	while(inertial_sensor.is_calibrating())
+	{
+		pros::lcd::print(1, "inertial taken %f seconds to calibrate", (float)calibrate_timer/1000);
+		calibrate_timer += 20;
+		pros::delay(20);
+
+	}
 
 	while(true)
 	{
 		// Absolute Angle //////////////////////////////////////////////////////////////
-			robot_angle = inertial_sensor.get_rotation();
+			absolute_robot_angle = inertial_sensor.get_rotation(); //degrees
+
+			θ1 = absolute_robot_angle / 180 * 3.14159; //radians
+
+			Δθ = (absolute_robot_angle - θ0) / 180 * 3.14159; //radians
+			θm = θ0 + (Δθ/2); //radians
 		/////////////////////////////////////////////////////////////
 
 		// Absolute Position //////////////////////////////////////////////////////////////
-			x_wheel_position = tracking_wheel_horizontal.get_position() / 360 * (2.75 * 3.14159);
-			y_wheel_position = tracking_wheel_vertical.get_position() / 360 * (2.75 * 3.14159);
+			ΔS = (float)(tracking_wheel_horizontal.get_position() - prev_tracking_wheel_horizontal)/ 100 / 360 * (2.75 * 3.14159);
+			ΔR = (float)(tracking_wheel_vertical.get_position() - prev_tracking_wheel_vertical)/ 100 / 360 * (2.75 * 3.14159);
 
-			x_arc = x_wheel_position - prev_x_wheel_position;
-			y_arc = y_wheel_position - prev_y_wheel_position;
+			prev_tracking_wheel_horizontal = tracking_wheel_horizontal.get_position();
+			prev_tracking_wheel_vertical = tracking_wheel_vertical.get_position();
 
-			robot_position[0] = 2*std::sin(robot_angle/2) * (x_arc/robot_angle + Tx); //x
-			robot_position[1] = 2*std::sin(robot_angle/2) * (y_arc/robot_angle + Ty); //y
+
+			if (Δθ == 0)
+			{
+				Δdl[0] = ΔS;
+				Δdl[1] = ΔR;
+			} else
+			{
+				Δdl[0] = 2*std::sin((Δθ/2)) *(ΔS/Δθ + x_offset); //x
+				Δdl[1] = 2*std::sin((Δθ/2)) * (ΔR/Δθ + y_offset); //y
+			}
+
+			Δdl_polar[0] = sqrt(pow(Δdl[0],2) + pow(Δdl[1],2));
+			Δdl_polar[1] = atan(Δdl[1] / Δdl[0]) + (-θm); //polar angle rotated by -θm = global polar angle
+
+			Δd[0] = Δdl_polar[0] * std::cos(Δdl_polar[1]); //x
+			Δd[1] = Δdl_polar[0] * std::sin(Δdl_polar[1]); //y
+
+			robot_position[0] = d0[0] + Δd[0]; //x inches
+			robot_position[1] = d0[1] + Δd[1]; //y inches
+
+
+			θ0 = θ1; //previous angle = new angle
+
+			d0[0] = robot_position[0]; //previous x = new x
+			d0[1] = robot_position[1]; //previous y = new y
+
+
 		
-
-			prev_x_wheel_position = x_wheel_position;
-			prev_y_wheel_position = y_wheel_position;
 		/////////////////////////////////////////////////////////////
 
 		pros::lcd::print(4,"position (x,y): (%f,%f)",robot_position[0],robot_position[1]); //does not work
-		pros::lcd::print(5,"x.get_position(): %d",tracking_wheel_horizontal.get_position());
-		pros::lcd::print(2,"x.get_angle(): %d",tracking_wheel_horizontal.get_angle());
-
+		pros::lcd::print(3,"x_wheel manual(): %f",(float)tracking_wheel_horizontal.get_position() / 100);
+		pros::lcd::print(2,"x_wheel var: %f",x_arc);
+		// pros::lcd::print(3,"flywheel rpm: %d",flywheel_rpm);
+		
 
 		odom_counter++;
 		pros::delay(20);
 	}
 }
 
-
+/*
 void goTo(float target_x, float target_y, float settle_time_msec, float kI_start_at_angle, float kI_start_at_distance, int timeout_msec)
 {
 	//Odom variables
@@ -510,7 +558,7 @@ void goTo(float target_x, float target_y, float settle_time_msec, float kI_start
 
 			error_distance = sqrt(pow(relative_x,2) + pow(relative_y,2));
 
-/* ASK COACH */			error_angle = atan(relative_y / relative_x) / 3.1415 * 180 - robot_angle; //centidegrees
+		error_angle = atan(relative_y / relative_x) / 3.1415 * 180 - absolute_robot_angle; //centidegrees
 		////////////////////////////////////////////////////////////////////////////
 
 		
@@ -577,3 +625,4 @@ void goTo(float target_x, float target_y, float settle_time_msec, float kI_start
 
 	}
 }
+*/
