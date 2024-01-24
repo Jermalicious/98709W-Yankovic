@@ -16,7 +16,7 @@ pros::Motor left_intake(19, true);			// Left intake motor
 pros::Motor right_intake(14, false);		// Right intake motor
 pros::ADIDigitalOut wings(1, LOW);			// Pneumatics to extend the pusher wings
 pros::Rotation tracking_wheel_horizontal(1, false);
-pros::Rotation tracking_wheel_vertical(12, false);
+pros::Rotation tracking_wheel_vertical(5, false);
 pros::Imu inertial_sensor(6);
 pros::Rotation flywheel_sensor(7, true);
 
@@ -39,6 +39,11 @@ void TurnPID(float target, float settle_time_msec = 500, float kI_start_at_error
 void flywheel_bang_bang();
 void odometry();
 void goTo(float target_x, float target_y, float settle_time_msec, float kI_start_at_angle = 45, float kI_start_at_distance = 7, int timeout_msec = -1);
+void update_odom_sensors();
+
+int track_position();
+
+double reduce_angle_negative_180_to_180(double angle);
 
 // declare global variables
 const double forward_kP = 500;
@@ -180,8 +185,8 @@ void opcontrol()
 {
 
 	// start tasks
-	pros::Task odometry_task(odometry);
-	pros::Task flywheel_task(flywheel_bang_bang);
+	// pros::Task odometry_task(odometry);
+	// pros::Task flywheel_task(flywheel_bang_bang);
 	// pros::Task print_test(print_task_test);
 
 	// decalre variables
@@ -202,10 +207,12 @@ void opcontrol()
 	while (true)
 	{
 
+		track_position();
+
 		// printing on the brain screen
-		 pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
-		                  (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
-		                  (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
+		//  pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
+		//                   (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
+		//                   (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
 
 		// intake controller
 		if (controller.get_digital(DIGITAL_R1)) // forward
@@ -247,7 +254,8 @@ void opcontrol()
 		left_drivetrain = left_drive_speed;
 		right_drivetrain = right_drive_speed;
 
-		loopRate.delay(okapi::QFrequency(50.0)); // basically a perfectly even 20 ms between starts of each iteration
+		// loopRate.delay(okapi::QFrequency(50.0)); //breaks stuff in tasks. Avoid. // basically a perfectly even 20 ms between starts of each iteration
+		pros::delay(20);
 	}
 }
 
@@ -466,11 +474,11 @@ void odometry()
 	while(true)
 	{
 		// Absolute Angle //////////////////////////////////////////////////////////////
-			absolute_robot_angle = inertial_sensor.get_rotation(); //degrees
+			absolute_robot_angle = reduce_angle_negative_180_to_180(inertial_sensor.get_rotation()); //degrees
 
 			θ1 = absolute_robot_angle / 180 * 3.14159; //radians
 
-			Δθ = (absolute_robot_angle - θ0) / 180 * 3.14159; //radians
+			Δθ = (θ1 - θ0); //radians
 			θm = θ0 + (Δθ/2); //radians
 		/////////////////////////////////////////////////////////////
 
@@ -488,8 +496,8 @@ void odometry()
 				Δdl[1] = ΔR;
 			} else
 			{
-				Δdl[0] = 2*std::sin((Δθ/2)) *(ΔS/Δθ + x_offset); //x
-				Δdl[1] = 2*std::sin((Δθ/2)) * (ΔR/Δθ + y_offset); //y
+				Δdl[0] = 2*sin((Δθ/2)) *(ΔS/Δθ + x_offset); //x
+				Δdl[1] = 2*sin((Δθ/2)) * (ΔR/Δθ + y_offset); //y
 			}
 
 			Δdl_polar[0] = sqrt(pow(Δdl[0],2) + pow(Δdl[1],2));
@@ -511,15 +519,159 @@ void odometry()
 		
 		/////////////////////////////////////////////////////////////
 
-		pros::lcd::print(4,"position (x,y): (%f,%f)",robot_position[0],robot_position[1]); //does not work
-		pros::lcd::print(3,"x_wheel manual(): %f",(float)tracking_wheel_horizontal.get_position() / 100);
-		pros::lcd::print(2,"x_wheel var: %f",x_arc);
-		// pros::lcd::print(3,"flywheel rpm: %d",flywheel_rpm);
+		pros::lcd::print(0,"position (x,y): (%f,%f)",robot_position[0],robot_position[1]);
+		pros::lcd::print(1,"angle radians: %f",Δθ);
+		pros::lcd::print(2,"absolute angle degeres: %f",absolute_robot_angle);
+		pros::lcd::print(3,"Δd: [%f , %f]", Δd[0], Δd[1]);
+		pros::lcd::print(4,"Δdl: [%f , %f]", Δdl[0], Δdl[1]);
+		pros::lcd::print(5,"Δdl_polar: [%f , %f]", Δdl_polar[0], Δdl_polar[1]);
+		pros::lcd::print(6,"y_pos: %f", Δd[1]);
 		
 
 		odom_counter++;
-		pros::delay(20);
+		pros::delay(1000);
 	}
+}
+
+
+/*---------------------------------------//TRACKING SENSOR VARIABLES//------------------------------------------------------*/
+
+float Forward_Tracker_Distance = 2.25;            //Distance from forward tracking wheel to robot center
+float Sideways_Tracker_Distance = 3.875;            //Distance from sideways tracking wheel to robot center
+
+float Forward_Tracker_Inches_per_Degree = 0.023617;  //Ratio used to convert degrees on tracking wheels to inches of movement 
+float Sideways_Tracker_Inches_per_Degree = 0.023949;  //Use "Calibrate Trackers" program to calculate these values 
+
+float Previous_Forward_Tracker_Reading = 0;       //Variables used to calculate the change in tracker readings
+float Previous_Sideways_Tracker_Reading = 0;      //These changes will hereafter be referred to as "deltas"
+
+float Delta_Forward_Tracker = 0;                  //Changes in the forward and sideways tracking wheels. These changes
+float Delta_Sideways_Tracker = 0;                 //are used to calculate each movement and update global position
+
+float Current_Forward_Tracker_Reading = 0;        //These variables are used to establish tracking wheel readings at a given
+float Current_Sideways_Tracker_Reading = 0;       //time so that changes can be periodically noted.
+
+/*-----------------------------------------//POSITIONING VARIABLES//--------------------------------------------------------*/
+
+float local_X_position = 0;                       // Local position variables used to specify local movements which will then
+float local_Y_position = 0;                       // be used as a reference for Global Position.
+
+float absolute_global_X = 0;                      // Absolute position in terms of x and y coordinates
+float absolute_global_Y = 0;
+
+float previous_global_X = 0;                      // Variables used to store previous global positions. These will be used to 
+float previous_global_Y = 0;                      // calculate changes in global position.
+
+float delta_global_X = 0;                         // Change in absolute position in terms of x and y coordinates.  These values
+float delta_global_Y = 0;                         // are recalculated with each loop of the "update_robot_position" function.
+
+float local_polar_angle = 0;                      // Variables for robot position in polar coordinates.  Local angle and length
+float local_polar_length = 0;                     // are used for each localized movement while global refers to the absolute
+float global_polar_angle = 0;                     // Polar angle
+
+float absolute_heading_degrees = 0;               // Absolute heading of the robot with the option of listing it in degrees
+float absolute_heading_radians = 0;               // or radians.
+
+float previous_heading_degrees = 0;               // Variables used to store previous heading in degrees or radians.
+float previous_heading_radians = 0;
+
+float delta_heading_degrees = 0;                  // Variables used to store the change in heading for every localized
+float delta_heading_radians = 0;                  // movement in degrees or radians.
+
+
+
+
+void update_tracking_sensors()
+{
+  // Set current tracker and heading measurements
+  Current_Forward_Tracker_Reading = (float)tracking_wheel_vertical.get_position()/ 100 / 360 * (2.75 * 3.14159);
+  Current_Sideways_Tracker_Reading = (float)tracking_wheel_horizontal.get_position()/ 100 / 360 * (2.75 * 3.14159);
+  absolute_heading_degrees = reduce_angle_negative_180_to_180(inertial_sensor.get_rotation());//*1.16 //1.16 represents a drift correction factor.
+  absolute_heading_radians = absolute_heading_degrees / 180 * 3.14159;
+
+
+  // Calculate change in tracker and heading measurements. Used to calculate local movements
+  Delta_Forward_Tracker = Current_Forward_Tracker_Reading - Previous_Forward_Tracker_Reading;
+  Delta_Sideways_Tracker = Current_Sideways_Tracker_Reading - Previous_Sideways_Tracker_Reading;
+  delta_heading_degrees = absolute_heading_degrees-previous_heading_degrees;
+  delta_heading_radians = absolute_heading_radians-previous_heading_radians;
+
+  // Set current tracker readings and heading as "previous" values.  Will allow us to calculate
+  // changes (deltas) in next loop.
+  Previous_Forward_Tracker_Reading = Current_Forward_Tracker_Reading;
+  Previous_Sideways_Tracker_Reading = Current_Sideways_Tracker_Reading;
+  previous_heading_degrees = absolute_heading_degrees;
+  previous_heading_radians = absolute_heading_radians;
+}
+
+void update_robot_position()
+{
+  // If the heading of the robot has not changed, local x and local y values will be directly equal to the distances measured by
+  // the forward and sideways tracking wheels. 
+  if(delta_heading_radians == 0)
+  {
+    local_X_position = Delta_Sideways_Tracker;
+    local_Y_position = Delta_Forward_Tracker;
+  }
+  // If the angle has changed, then local x and y can be obtained by calculating the chord length of the arc intercepted by the
+  // robot's movement.  The chord length is given by (2* sin(theta/2)*radius), where theta is the heading of the robot and the radius
+  // is calculated by dividing the tracker wheel distance by the heading of the robot then adding the tracker wheel distance from
+  // robot center. (Radius = Arc Length/Angle)
+  else
+  {
+    local_X_position = (2*sin(delta_heading_radians/2))*((Delta_Sideways_Tracker/delta_heading_radians)+Sideways_Tracker_Distance);
+    local_Y_position = (2*sin(delta_heading_radians/2))*((Delta_Forward_Tracker/delta_heading_radians)+Forward_Tracker_Distance);
+  }
+
+  // We convert local X and Y into polar coordinates.  If there are both zero (i.e. the robot hasn't moved), we immediately set local
+  // polar angle and length to 0.
+  if(local_X_position == 0 && local_Y_position == 0)
+  {
+    local_polar_angle = 0;
+    local_polar_length = 0;
+  }
+  // Otherwise, local polar angle is found by taking the arctan of our position and local polar length is found by applying the 
+  // distance equation for our x and y coordinates.
+  else
+  {
+    local_polar_angle = atan2(local_Y_position,local_X_position);
+    local_polar_length = sqrt(pow(local_X_position,2)+pow(local_Y_position,2));
+  }
+
+  // Global polar angle found by taking the local polar angle and subtracting the previous heading and then half of the change in 
+  // heading.  This corrects for our shifted local coordinate system
+  global_polar_angle = local_polar_angle - previous_heading_radians - (delta_heading_radians/2);
+
+  // Change in global x and y can then be calculated by converting our local polar coordinates back to X and Y values
+  delta_global_X = local_polar_length*cos(global_polar_angle);
+  delta_global_Y = local_polar_length*sin(global_polar_angle);
+
+  // Adding our change in global position to our previous global posiiton gives us our new absolute position in terms of x and
+  // y coordinates.
+  absolute_global_X = previous_global_X + delta_global_X;
+  absolute_global_Y = previous_global_Y + delta_global_Y;
+
+  // Set previous positions as our current absolute positions so that the next run can properly calculate changes.
+  previous_global_X = absolute_global_X;
+  previous_global_Y = absolute_global_Y;
+
+  // Set previous heading as our current heading for the same reason.
+  previous_heading_radians = absolute_heading_radians;
+}
+
+int track_position()
+{
+  while(true)
+  {
+    update_robot_position();
+    update_tracking_sensors();
+	
+
+    //Print absolute x, absolute y, and heading on the brain screen
+    pros::lcd::print(0, "Absolute X: %f Inches", absolute_global_X);
+    pros::lcd::print(1, "Absolute Y: %f Inches", absolute_global_Y);
+    pros::lcd::print(2, "Absolute Heading: %f Radians, %f Degrees", absolute_heading_radians, absolute_heading_degrees);
+  }
 }
 
 /*
@@ -626,3 +778,19 @@ void goTo(float target_x, float target_y, float settle_time_msec, float kI_start
 	}
 }
 */
+
+double reduce_angle_negative_180_to_180(double angle_degrees)
+{
+	while((angle_degrees > 180) || (angle_degrees <= -180))
+	{
+		if(angle_degrees > 180) { angle_degrees -= 360; }
+		if(angle_degrees <= -180) { angle_degrees += 360; }
+	}
+
+	return(angle_degrees);
+}
+
+void update_odom_sensors()
+{
+
+}
