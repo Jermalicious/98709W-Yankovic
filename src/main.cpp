@@ -33,7 +33,7 @@ pros::Motor_Group left_drivetrain({left_top_drive, left_back_drive, left_front_d
 pros::Motor_Group right_drivetrain({right_top_drive, right_back_drive, right_front_drive}); // the three motors for the right side of the drivetrain
 pros::Motor_Group intake({left_intake, right_intake});										// both intake motors
 
-// declare functions so taht we can define them at the bottom of this page
+// declare functions so that we can define them at the bottom of this page
 void ForwardPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 7, int timeout_msec = -1);
 void TurnPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 45, int timeout_msec = -1);
 void flywheel_bang_bang();
