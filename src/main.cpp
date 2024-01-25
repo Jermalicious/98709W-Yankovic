@@ -131,38 +131,37 @@ void competition_initialize()
 void autonomous()
 {
 	//Crude Pre-Match Auton
-		intake = 95;
-		left_drivetrain = 95; //intake ball under bar
-		right_drivetrain = 95;
-		pros::delay (50); //50 = 20 msec, smaller # = longer wait
-		intake = 0; 
-		left_drivetrain = -95;//back up into corner ground ball
-		right_drivetrain = -95;
-		pros::delay (25); // wait 40 msec
-		left_drivetrain = 50; //turn left (front of robot = forward)
-		right_drivetrain = -50;
-		pros::delay (100); // wait 10 msec
-		left_drivetrain = -95;//back up into wall
-		right_drivetrain = -95;
-		left_drivetrain = 50; //turn left (front of robot = forward)
-		right_drivetrain = -50;
-		pros::delay (100); // wait 10 msec
-		left_drivetrain = -95;//back up into wall
-		right_drivetrain = -95; 
-		left_drivetrain = 0; //Stop moving
-		right_drivetrain = 0;
+intake = 95;
+left_drivetrain = 95; //intake ball under bar
+right_drivetrain = 95;
+pros::delay (50); //50 = 20 msec, smaller # = longer wait
+intake = 0; 
+left_drivetrain = -95;//back up into corner ground ball
+right_drivetrain = -95;
+pros::delay (25); // wait 40 msec
+left_drivetrain = 50; //turn left (front of robot = forward)
+right_drivetrain = -50;
+pros::delay (100); // wait 10 msec
+left_drivetrain = -95;//back up into wall
+right_drivetrain = -95;
+left_drivetrain = 50; //turn left (front of robot = forward)
+right_drivetrain = -50;
+pros::delay (100); // wait 10 msec
+left_drivetrain = -95;//back up into wall
+right_drivetrain = -95; 
+left_drivetrain = 0; //Stop moving
+right_drivetrain = 0;
 
 
 	// PRE-MATCH AUTON:
-			// inertial_sensor.set_rotation(-90); // Sets 0 degrees to be infront of drive box
-			// intake = 95;
-			// ForwardPID(6); // intake ball under the bar
-			// intake = 0;
-			// ForwardPID(-36); // go backwards
-			// TurnPID(-135);
-			// ForwardPID(-48); // push team ball behind to the loading ground bar
-			// TurnPID(-180);
-			// ForwardPID(-24); // push team ball into goal
+// intake = 95;
+// ForwardPID(6); // intake ball under the bar
+// intake = 0;
+// ForwardPID(-36); // go backwards
+// TurnPID(-135);
+// ForwardPID(-48); // push team ball behind to the loading ground bar
+// TurnPID(-180);
+// ForwardPID(-24); // push team ball into goal
 
 	// SKILLS RUN:
 	//  for(int i = 0; i < 9; i++) //runs the fire routine 42 times (two extra for now)
