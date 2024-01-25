@@ -41,7 +41,7 @@ void odometry();
 void goTo(float target_x, float target_y, float settle_time_msec, float kI_start_at_angle = 45, float kI_start_at_distance = 7, int timeout_msec = -1);
 void update_odom_sensors();
 
-int track_position();
+void track_position();
 
 double reduce_angle_negative_180_to_180(double angle);
 
@@ -56,6 +56,12 @@ const double turn_kD = 10;
 
 bool toggle_flywheel = 0;
 
+int main_counter = 40;
+
+void printstuff()
+{
+	pros::lcd::print(4,"main_counter: %d",main_counter);
+}
 
 /**
  * A callback function for LLEMU's center button.
@@ -63,19 +69,19 @@ bool toggle_flywheel = 0;
  * When this callback is fired, it will toggle line 2 of the LCD text between
  * "I was pressed!" and nothing.
  */
-void on_center_button()
-{
-	static bool pressed = false;
-	pressed = !pressed;
-	if (pressed)
-	{
-		pros::lcd::set_text(2, "I was pressed!");
-	}
-	else
-	{
-		pros::lcd::clear_line(2);
-	}
-}
+// void on_center_button()
+// {
+// 	static bool pressed = false;
+// 	pressed = !pressed;
+// 	if (pressed)
+// 	{
+// 		pros::lcd::set_text(2, "I was pressed!");
+// 	}
+// 	else
+// 	{
+// 		pros::lcd::clear_line(2);
+// 	}
+// }
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -88,7 +94,7 @@ void initialize()
 	pros::lcd::initialize();
 	// pros::lcd::set_text(1, "Hello PROS User!");
 
-	pros::lcd::register_btn1_cb(on_center_button);
+	// pros::lcd::register_btn1_cb(on_center_button);
 
 	// autonomous();
 }
@@ -183,13 +189,16 @@ void autonomous()
 
 void opcontrol()
 {
+	
 
 	// start tasks
 	// pros::Task odometry_task(odometry);
 	// pros::Task flywheel_task(flywheel_bang_bang);
 	// pros::Task print_test(print_task_test);
+	pros::Task position(track_position);
 
 	// decalre variables
+
 
 	float drive_forward;
 	float drive_turn;
@@ -207,12 +216,19 @@ void opcontrol()
 	while (true)
 	{
 
-		track_position();
+		pros::lcd::initialize();
 
 		// printing on the brain screen
 		//  pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
 		//                   (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
 		//                   (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
+
+		if (main_counter >= 1000)
+		{
+			printstuff();
+			main_counter += 20;
+		}
+
 
 		// intake controller
 		if (controller.get_digital(DIGITAL_R1)) // forward
@@ -659,8 +675,9 @@ void update_robot_position()
   previous_heading_radians = absolute_heading_radians;
 }
 
-int track_position()
+void track_position()
 {
+	int tracking_counter = 0;
   while(true)
   {
     update_robot_position();
@@ -671,6 +688,10 @@ int track_position()
     pros::lcd::print(0, "Absolute X: %f Inches", absolute_global_X);
     pros::lcd::print(1, "Absolute Y: %f Inches", absolute_global_Y);
     pros::lcd::print(2, "Absolute Heading: %f Radians, %f Degrees", absolute_heading_radians, absolute_heading_degrees);
+	pros::lcd::print(3, "tracking counter : %d", tracking_counter);
+
+	tracking_counter += 1;
+	pros::delay(20);
   }
 }
 
@@ -781,10 +802,20 @@ void goTo(float target_x, float target_y, float settle_time_msec, float kI_start
 
 double reduce_angle_negative_180_to_180(double angle_degrees)
 {
+	pros::lcd::print(5,"reduce angle: %f",angle_degrees);
+	
 	while((angle_degrees > 180) || (angle_degrees <= -180))
 	{
-		if(angle_degrees > 180) { angle_degrees -= 360; }
-		if(angle_degrees <= -180) { angle_degrees += 360; }
+		if(angle_degrees > 180) 
+		{
+			angle_degrees -= 360;
+		}
+		else if(angle_degrees <= -180) 
+		{
+			angle_degrees += 360;
+		}
+
+		pros::lcd::print(5,"reduce angle: %f",angle_degrees);
 	}
 
 	return(angle_degrees);
