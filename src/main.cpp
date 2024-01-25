@@ -134,19 +134,20 @@ void autonomous()
 intake = 95;
 left_drivetrain = 95; //intake ball under bar
 right_drivetrain = 95;
-pros::delay (50); //50 = 20 msec, smaller # = longer wait
+pros::delay (20); //20 msec
 intake = 0; 
 left_drivetrain = -95;//back up into corner ground ball
 right_drivetrain = -95;
-pros::delay (25); // wait 40 msec
+pros::delay (40); // wait 40 msec
 left_drivetrain = 50; //turn left (front of robot = forward)
 right_drivetrain = -50;
-pros::delay (100); // wait 10 msec
+pros::delay (10); // wait 10 msec
 left_drivetrain = -95;//back up into wall
 right_drivetrain = -95;
+pros::delay (20);// wait 20 msec
 left_drivetrain = 50; //turn left (front of robot = forward)
 right_drivetrain = -50;
-pros::delay (100); // wait 10 msec
+pros::delay (10); // wait 10 msec
 left_drivetrain = -95;//back up into wall
 right_drivetrain = -95; 
 left_drivetrain = 0; //Stop moving
