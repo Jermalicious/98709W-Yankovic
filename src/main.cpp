@@ -804,10 +804,20 @@ void goTo(float target_x, float target_y, float settle_time_msec, float kI_start
 
 double reduce_angle_negative_180_to_180(double angle_degrees)
 {
-	while((angle_degrees > 180) || (angle_degrees <= -180))
+	pros::lcd::print(5,"reduce angle: %f",angle_degrees);
+
+	while(angle_degrees > 180)
 	{
-		if(angle_degrees > 180) { angle_degrees -= 360; }
-		if(angle_degrees <= -180) { angle_degrees += 360; }
+		if(angle_degrees > 180) 
+		{
+			angle_degrees -= 360;
+		}
+		else if(angle_degrees <= -180) 
+		{
+			angle_degrees += 360;
+		}
+
+		pros::lcd::print(5,"reduce angle: %f",angle_degrees);
 	}
 
 	return(angle_degrees);
