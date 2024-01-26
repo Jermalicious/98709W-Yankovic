@@ -54,7 +54,7 @@ const double turn_kP = 500;
 const double turn_kI = .1;
 const double turn_kD = 10;
 
-bool toggle_flywheel = 0;
+int toggle_flywheel = 0;
 
 
 /**
@@ -212,7 +212,7 @@ void opcontrol()
 	// pros::Task flywheel_task(flywheel_bang_bang);
 	// pros::Task print_test(print_task_test);
 
-	pros::Task odometry(track_position);
+	// pros::Task odometry(track_position);
 
 	// decalre variables
 
@@ -242,7 +242,7 @@ void opcontrol()
 		{
 			intake = 95;
 		}
-		else if (controller.get_digital(DIGITAL_R2)) // reverse
+		else if (controller.get_digital(DIGITAL_L1)) // reverse
 		{
 			intake = -95;
 		}
@@ -262,9 +262,35 @@ void opcontrol()
 		}
 
 		// turns flywheel on and off
-		if (controller.get_digital_new_press(DIGITAL_L1))
-		{ // function to toggle flywheel when A is pressed
-			toggle_flywheel = !toggle_flywheel;
+		if (controller.get_digital_new_press(DIGITAL_R2))
+		{ // function to toggle flywheel forward when R2 is pressed
+			if (!toggle_flywheel)
+			{
+				flywheel_motor.move_voltage(12000);
+				toggle_flywheel = 1;
+			}
+			else if (toggle_flywheel)
+			{
+				flywheel_motor.move_voltage(0);
+				toggle_flywheel = 0;
+			}
+
+			pros::lcd::print(4,"Forward!!");
+		}
+
+		if (controller.get_digital_new_press(DIGITAL_L2))
+		{ // function to toggle flywheel reverse when L2 is pressed
+			if (!toggle_flywheel)
+			{
+				flywheel_motor.move_voltage(-12000);
+				toggle_flywheel = 1;
+			}
+			else if (toggle_flywheel)
+			{
+				flywheel_motor.move_voltage(0);
+				toggle_flywheel = 0;
+			}
+			pros::lcd::print(4,"Reverse!");
 		}
 
 		// Sets drivetrain speed in % (capped at 95%)
@@ -425,9 +451,9 @@ void flywheel_bang_bang() // BANG BANG control
 
 		if (toggle_flywheel)
 		{
-			if (flywheel_rpm < 3900)
+			if (abs(flywheel_rpm) < 3900) 
 			{
-				flywheel_motor.move_voltage(11500);
+				flywheel_motor.move_voltage(11500*toggle_flywheel);
 			}
 			else
 			{
@@ -437,8 +463,9 @@ void flywheel_bang_bang() // BANG BANG control
 		{
 			flywheel_motor.brake();
 		}
-		// pros::lcd::print(2,"flywheel iteration #: %d",flywheel_counter);
-		// pros::lcd::print(3,"flywheel rpm: %d",flywheel_rpm);
+		pros::lcd::print(0,"flywheel iteration #: %d",flywheel_counter);
+		pros::lcd::print(1,"flywheel rpm: %d",flywheel_rpm);
+		pros::lcd::print(2,"flywheel_toggle: %d",toggle_flywheel);
 		flywheel_counter++;
 		pros::delay(20);
 		//loopRate.delay(okapi::QFrequency(50.0)); // runs exactly 20ms between starts of each iteration
