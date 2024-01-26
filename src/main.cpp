@@ -41,7 +41,7 @@ void odometry();
 void goTo(float target_x, float target_y, float settle_time_msec, float kI_start_at_angle = 45, float kI_start_at_distance = 7, int timeout_msec = -1);
 void update_odom_sensors();
 
-int track_position();
+void track_position();
 
 double reduce_angle_negative_180_to_180(double angle);
 
@@ -212,6 +212,8 @@ void opcontrol()
 	// pros::Task flywheel_task(flywheel_bang_bang);
 	// pros::Task print_test(print_task_test);
 
+	pros::Task odometry(track_position);
+
 	// decalre variables
 
 	float drive_forward;
@@ -229,8 +231,6 @@ void opcontrol()
 
 	while (true)
 	{
-
-		track_position();
 
 		// printing on the brain screen
 		//  pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
@@ -609,7 +609,7 @@ void update_tracking_sensors()
   // Set current tracker and heading measurements
   Current_Forward_Tracker_Reading = (float)tracking_wheel_vertical.get_position()/ 100 / 360 * (2.75 * 3.14159);
   Current_Sideways_Tracker_Reading = (float)tracking_wheel_horizontal.get_position()/ 100 / 360 * (2.75 * 3.14159);
-  absolute_heading_degrees = reduce_angle_negative_180_to_180(inertial_sensor.get_rotation());//*1.16 //1.16 represents a drift correction factor.
+//   absolute_heading_degrees = reduce_angle_negative_180_to_180(inertial_sensor.get_rotation());//*1.16 //1.16 represents a drift correction factor.
   absolute_heading_radians = absolute_heading_degrees / 180 * 3.14159;
 
 
@@ -682,7 +682,7 @@ void update_robot_position()
   previous_heading_radians = absolute_heading_radians;
 }
 
-int track_position()
+void track_position()
 {
   while(true)
   {
@@ -806,7 +806,7 @@ double reduce_angle_negative_180_to_180(double angle_degrees)
 {
 	pros::lcd::print(5,"reduce angle: %f",angle_degrees);
 
-	while(angle_degrees > 180)
+	while((angle_degrees > 180) || (angle_degrees <= -180))
 	{
 		if(angle_degrees > 180) 
 		{
@@ -817,7 +817,7 @@ double reduce_angle_negative_180_to_180(double angle_degrees)
 			angle_degrees += 360;
 		}
 
-		pros::lcd::print(5,"reduce angle: %f",angle_degrees);
+		pros::lcd::print(6,"reduce angle(loop): %f",angle_degrees);
 	}
 
 	return(angle_degrees);
