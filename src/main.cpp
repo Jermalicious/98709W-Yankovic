@@ -266,7 +266,7 @@ void opcontrol()
 		{ // function to toggle flywheel forward when R2 is pressed
 			if (!toggle_flywheel)
 			{
-				flywheel_motor.move_voltage(12000);
+				flywheel_motor.move_voltage(11900);
 				toggle_flywheel = 1;
 			}
 			else if (toggle_flywheel)
@@ -282,7 +282,7 @@ void opcontrol()
 		{ // function to toggle flywheel reverse when L2 is pressed
 			if (!toggle_flywheel)
 			{
-				flywheel_motor.move_voltage(-12000);
+				flywheel_motor.move_voltage(-11900);
 				toggle_flywheel = 1;
 			}
 			else if (toggle_flywheel)
