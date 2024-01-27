@@ -17,7 +17,7 @@ pros::Motor right_intake(14, false);		// Right intake motor
 pros::ADIDigitalOut wings(1, LOW);			// Pneumatics to extend the pusher wings
 pros::Rotation tracking_wheel_horizontal(1, false);
 pros::Rotation tracking_wheel_vertical(5, false);
-pros::Imu inertial_sensor(6);
+pros::Imu inertial_sensor(20);
 pros::Rotation flywheel_sensor(7, true);
 
 // define drivetrain motors
@@ -46,13 +46,13 @@ void track_position();
 double reduce_angle_negative_180_to_180(double angle);
 
 // declare global variables
-const double forward_kP = 500;
+const double forward_kP = 650;
 const double forward_kI = 0;
 const double forward_kD = 0;
 
-const double turn_kP = 500;
-const double turn_kI = .1;
-const double turn_kD = 10;
+const double turn_kP = 1000;
+const double turn_kI = 0;
+const double turn_kD = 0;
 
 int toggle_flywheel = 0;
 
@@ -90,7 +90,7 @@ void initialize()
 
 	pros::lcd::register_btn1_cb(on_center_button);
 
-	// autonomous();
+	autonomous();
 }
 
 /**
@@ -130,28 +130,52 @@ void competition_initialize()
 
 void autonomous()
 {
-	//Crude Pre-Match Auton
-intake = 95;
-left_drivetrain = 95; //intake ball under bar
-right_drivetrain = 95;
-pros::delay (100); //1000 msec (1 sec)
-	intake = 0; 
-	left_drivetrain = -95;//back up into corner ground ball
-	right_drivetrain = -95;
-	pros::delay (1000); // wait 1 sec
-left_drivetrain = 50; //turn left (front of robot = forward)
-right_drivetrain = -50;
-pros::delay (500); // wait .5 sec
-	left_drivetrain = -95;//back up into wall
-	right_drivetrain = -95;
-	pros::delay (1000);// wait 1 sec
-left_drivetrain = 50; //turn left (front of robot = forward)
-right_drivetrain = -50;
-pros::delay (500); // wait .5 sec
-	left_drivetrain = -95;//back up into wall
-	right_drivetrain = -95; 
-left_drivetrain = 0; //Stop moving
-right_drivetrain = 0;
+
+	while(inertial_sensor.is_calibrating())
+	{
+		pros::delay(20);
+	}
+
+	ForwardPID(24);
+	ForwardPID(-24);
+
+	left_drivetrain = -50; //turn left (front of robot = forward)
+	right_drivetrain = 50;
+	pros::delay (200); // wait .2 sec
+
+	// TurnPID(180);
+	// ForwardPID(24);
+	// TurnPID(0);
+
+
+// 	//Crude Pre-Match Auton
+// intake = 95;
+// left_drivetrain = 95; //intake ball under bar
+// right_drivetrain = 95;
+// pros::delay (100); //1000 msec (1 sec)
+
+// intake = 0; 
+// left_drivetrain = -95;//back up into corner ground ball
+// right_drivetrain = -95;
+// pros::delay (1000); // wait 1 sec
+
+// left_drivetrain = 50; //turn left (front of robot = forward)
+// right_drivetrain = -50;
+// pros::delay (500); // wait .5 sec
+
+// left_drivetrain = -95;//back up into wall
+// right_drivetrain = -95;
+// pros::delay (1000);// wait 1 sec
+
+// left_drivetrain = 50; //turn left (front of robot = forward)
+// right_drivetrain = -50;
+// pros::delay (500); // wait .5 sec
+
+// left_drivetrain = -95;//back up into wall
+// right_drivetrain = -95; 
+
+// left_drivetrain = 0; //Stop moving
+// right_drivetrain = 0;
 
 
 	// PRE-MATCH AUTON:
@@ -275,7 +299,7 @@ void opcontrol()
 				toggle_flywheel = 0;
 			}
 
-			pros::lcd::print(4,"Forward!!");
+			pros::lcd::print(4,"Forward!");
 		}
 
 		if (controller.get_digital_new_press(DIGITAL_L2))
@@ -327,7 +351,7 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 
 	if (timeout_msec = -1) // this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
 	{
-		timeout_msec = error * 30 + 500; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
+		timeout_msec = error * 30 + 5000; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
 	}
 
 	while (timer <= timeout_msec && settle_timer <= settle_time_msec)
@@ -351,12 +375,12 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 
 		prev_error = error;
 
-		output = forward_kP * (error + forward_kI * integral + forward_kD * derivative);
+		output = forward_kP * error + forward_kI * integral + forward_kD * derivative;
 
-		// cap output at 11000 milivolts (11 volts)
-		if (output > 11000)
+		// cap output at 11500 milivolts (11.5 volts)
+		if (output > 11500)
 		{
-			output = 11000;
+			output = 11500;
 		}
 
 		// output to drivetrain
@@ -380,6 +404,8 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 
 void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value, int timeout_msec)
 {
+	pros::lcd::print(0,"entered turnPID");
+
 	float error = target - inertial_sensor.get_rotation(); // target is degrees we want to be at
 	float prev_error;
 	float integral;
@@ -394,7 +420,7 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 
 	if (timeout_msec = -1) // this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
 	{
-		timeout_msec = error * 30 + 500; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
+		timeout_msec = error * 30 + 5000; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
 	}
 
 	while (timer < timeout_msec && settle_timer < settle_time_msec)
@@ -402,6 +428,8 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 		sensor = inertial_sensor.get_rotation();
 
 		error = target - sensor;
+
+		// pros::lcd::print(3,"%f",reduce_angle_negative_180_to_180(370));
 
 		if (error < kI_start_at_error_value)
 		{
@@ -412,18 +440,19 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 
 		prev_error = error;
 
-		output = turn_kP * (error + turn_kI * integral + turn_kD * derivative);
+		output = turn_kP * error;
 
-		// cap output at 11000 milivolts (11 volts)
-		if (output > 11000)
+		// cap output at 11500 milivolts (11 volts)
+		if (output > 11500)
 		{
-			output = 11000;
+			output = 11500;
 		}
 
 		// output to drivetrain
 		left_drivetrain.move_voltage(output); // output needs to be -12000 to 12000 milivolts
 		right_drivetrain.move_voltage(-output);
 
+		pros::lcd::print(3,"output: %d", output);
 
 		if (abs(error) < settle_distance) // absolute value so it never goes negative
 		{
@@ -435,6 +464,8 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 		}
 
 		timer += 20;
+
+		pros::lcd::print(1,"error_angle: %f", error);
 
 		pros::delay(20);
 	}
@@ -833,20 +864,21 @@ double reduce_angle_negative_180_to_180(double angle_degrees)
 {
 	pros::lcd::print(5,"reduce angle: %f",angle_degrees);
 
-	while((angle_degrees > 180) || (angle_degrees <= -180))
+	while(angle_degrees > 180)
 	{
-		if(angle_degrees > 180) 
-		{
-			angle_degrees -= 360;
-		}
-		else if(angle_degrees <= -180) 
-		{
-			angle_degrees += 360;
-		}
+		angle_degrees -= 360;
 
 		pros::lcd::print(6,"reduce angle(loop): %f",angle_degrees);
 	}
 
+	while(angle_degrees <= -180)
+	{
+		angle_degrees += 360;
+
+		pros::lcd::print(6,"reduce angle(loop): %f",angle_degrees);
+	}
+
+	pros::lcd::print(7,"Bruh");
 	return(angle_degrees);
 }
 
