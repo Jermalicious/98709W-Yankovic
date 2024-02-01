@@ -136,46 +136,16 @@ void autonomous()
 		pros::delay(20);
 	}
 
-	ForwardPID(24);
-	ForwardPID(-24);
+	ForwardPID(24); //move forward one tile
+	ForwardPID(-24); //move backward one tile
 
 	left_drivetrain = -50; //turn left (front of robot = forward)
 	right_drivetrain = 50;
 	pros::delay (200); // wait .2 sec
 
-	// TurnPID(180);
+	// TurnPID(180); //Turn to a degree value
 	// ForwardPID(24);
 	// TurnPID(0);
-
-
-// 	//Crude Pre-Match Auton
-// intake = 95;
-// left_drivetrain = 95; //intake ball under bar
-// right_drivetrain = 95;
-// pros::delay (100); //1000 msec (1 sec)
-
-// intake = 0; 
-// left_drivetrain = -95;//back up into corner ground ball
-// right_drivetrain = -95;
-// pros::delay (1000); // wait 1 sec
-
-// left_drivetrain = 50; //turn left (front of robot = forward)
-// right_drivetrain = -50;
-// pros::delay (500); // wait .5 sec
-
-// left_drivetrain = -95;//back up into wall
-// right_drivetrain = -95;
-// pros::delay (1000);// wait 1 sec
-
-// left_drivetrain = 50; //turn left (front of robot = forward)
-// right_drivetrain = -50;
-// pros::delay (500); // wait .5 sec
-
-// left_drivetrain = -95;//back up into wall
-// right_drivetrain = -95; 
-
-// left_drivetrain = 0; //Stop moving
-// right_drivetrain = 0;
 
 
 	// PRE-MATCH AUTON:
@@ -478,7 +448,7 @@ void flywheel_bang_bang() // BANG BANG control
 	while (true)
 	{
 		//get_velocity returns centidegrees per second, so we convert to rotations per minute
-		flywheel_rpm = (float)flywheel_sensor.get_velocity() / 360 *60;
+		flywheel_rpm = (float)flywheel_sensor.get_velocity() / 360 * 60;
 
 		if (toggle_flywheel)
 		{
