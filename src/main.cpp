@@ -35,14 +35,7 @@ pros::Motor_Group intake({left_intake, right_intake});										// both intake m
 
 // declare functions so that we can define them at the bottom of this page
 void ForwardPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 7, int timeout_msec = -1);
-void TurnPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 45, int timeout_msec = -1);
-void flywheel_bang_bang();
-void odometry();
-void goTo(float target_x, float target_y, float settle_time_msec, float kI_start_at_angle = 45, float kI_start_at_distance = 7, int timeout_msec = -1);
-void update_odom_sensors();
-
-void track_position();
-
+void TurnPID(float target, float settle_time_msec = 800, float kI_start_at_error_value = 16, int timeout_msec = -1);
 double reduce_angle_negative_180_to_180(double angle);
 
 // declare global variables
@@ -50,14 +43,17 @@ const double forward_kP = 650;
 const double forward_kI = 0;
 const double forward_kD = 0;
 
-const double turn_kP = 1000;
-const double turn_kI = 0;
-const double turn_kD = 0;
+const double turn_kP = 200;
+const double turn_kI = 16;
+const double turn_kD = 600;
+
+float starting_angle = 0; //angle of robot at start of auton, matters if we start at an odd angle but want to give field-relative instructions
 
 int toggle_flywheel = 0;
+int auton_picker = 0;
 
 
-/**
+/*
  * A callback function for LLEMU's center button.
  *
  * When this callback is fired, it will toggle line 2 of the LCD text between
@@ -69,13 +65,178 @@ void on_center_button()
 	pressed = !pressed;
 	if (pressed)
 	{
-		pros::lcd::set_text(2, "I was pressed!");
+		pros::lcd::set_text(6, "Skills");
+		auton_picker = 1;
 	}
 	else
 	{
-		pros::lcd::clear_line(2);
+		pros::lcd::clear_line(6);
+		auton_picker = 1;
 	}
 }
+
+void on_left_button()
+{
+	static bool pressed = false;
+	pressed = !pressed;
+	if (pressed)
+	{
+		pros::lcd::set_text(6, "shove ball under");
+		auton_picker = 2;
+	}
+	else
+	{
+		pros::lcd::clear_line(6);
+		auton_picker = 2;
+	}
+}
+
+void on_right_button()
+{
+	pros::lcd::clear_line(6);
+	static bool pressed = false;
+	pressed = !pressed;
+	if (pressed)
+	{
+		pros::lcd::set_text(6, "clear Match Loads (Loading Zone triballs)");
+		auton_picker = 3;
+	}
+	else
+	{
+		pros::lcd::clear_line(6);
+		auton_picker = 3;
+	}
+}
+
+void odometry()
+{
+	tracking_wheel_horizontal.set_position(0);
+	tracking_wheel_vertical.set_position(0);
+	int odom_counter = 0;
+
+	float absolute_robot_angle; //"θ1" in odom paper, but in degrees here
+	float θ1;
+	float robot_positionx = 0; //[ x , y ] in inches
+	float robot_positiony = 0; //[ x , y ] in inches
+	float Δdx;
+	float Δdy;
+	float Δdlx = 0;
+	float Δdly = 0;
+	float Δdl_polar_r;
+	float Δdl_polar_θ;
+
+	float y_offset = -2.5; //initialize //"SR" in odom paper, offset from vertical tracking wheel to tracking center in inches
+	float x_offset = 0.25; //"SS" in odom paper, offset from horizontal tracking wheel to tracking center in inches. It's negative because left is -x direction 
+	float y_arc;
+	float x_arc;
+
+	float Rr = 0; //at the "last reset" in this case the beginning
+	float Sr = 0; //at the "last reset" in this case the beginning
+	float θr = 0;  //at the "last reset" in this case the beginning
+
+	float θm; //average orientation used for converting to field coordinates
+
+	float d0x = 0; //previous robot position
+	float d0y = 0; //previous robot position
+	float θ0; //previous robot angle
+	float prev_tracking_wheel_horizontal;
+	float prev_tracking_wheel_vertical;
+
+	float ΔS = tracking_wheel_vertical.get_position() - prev_tracking_wheel_vertical;
+	float ΔR = tracking_wheel_horizontal.get_position() - prev_tracking_wheel_horizontal;
+	float Δθ; //radians
+	
+
+	//double ΔRr = tracking_wheel_vertical.get_position() - Rr;   //only needed to find angle
+	//double ΔLr = tracking_wheel_horizontal.get_position() - Sr; //only needed to find angle
+
+
+
+	int calibrate_timer = 0;
+
+	inertial_sensor.reset();
+	while(inertial_sensor.is_calibrating())
+	{
+		pros::lcd::print(1, "inertial taken %f seconds to calibrate", (float)calibrate_timer/1000);
+		calibrate_timer += 20;
+		pros::delay(20);
+
+	}
+
+	while(true)
+	{
+		// Absolute Angle //////////////////////////////////////////////////////////////
+			absolute_robot_angle = 0; //reduce_angle_negative_180_to_180(inertial_sensor.get_rotation()); //degrees
+
+			θ1 = absolute_robot_angle / 180 * 3.14159; //radians
+
+			Δθ = (θ1 - θ0); //radians
+			θm = θ0 + (Δθ/2); //radians
+		/////////////////////////////////////////////////////////////
+
+		// Absolute Position //////////////////////////////////////////////////////////////
+			ΔS = (float)(tracking_wheel_horizontal.get_position() - prev_tracking_wheel_horizontal)/ 100 / 360 * (2.75 * 3.14159);
+			ΔR = (float)(tracking_wheel_vertical.get_position() - prev_tracking_wheel_vertical)/ 100 / 360 * (2.75 * 3.14159);
+
+			prev_tracking_wheel_horizontal = tracking_wheel_horizontal.get_position();
+			prev_tracking_wheel_vertical = tracking_wheel_vertical.get_position();
+
+			
+			if (Δθ == 0)
+			{
+				pros::lcd::print(1,"delta_S: %f", ΔS);
+				
+				Δdlx = ΔS;
+				Δdly = ΔR;
+
+				pros::lcd::print(2,"delta_dlx: %f",Δdlx);
+			} else
+			{
+				pros::lcd::print(1,"delta_S: %f", ΔS);
+
+				Δdlx = 2*sin((Δθ/1.5)) *(ΔS/Δθ + x_offset); //x       just adding the offset makes me feel suspicious about infinite slide when sin(Δθ / 2) != 0
+				Δdly = 2*sin((Δθ/1.5)) * (ΔR/Δθ + y_offset); //y		std::sin and std::cos use RADIANS
+
+				pros::lcd::print(2,"delta_dlx: %f",Δdlx);
+
+			}
+///////////////////Probably OK to here
+
+			Δdl_polar_r = sqrt(pow(Δdlx,2) + pow(Δdly,2)); //this gets rid of negatives, but that's because you can't HAVE negatices as a distance
+
+
+			Δdl_polar_θ = atan2f(Δdly, Δdlx); //polar angle rotated by -θm = global polar angle CHECK here
+
+			Δdx = Δdl_polar_r * cos(Δdl_polar_θ + (-θm)); //x polar angle rotated by -θm = global polar angle
+			Δdy = Δdl_polar_r * sin(Δdl_polar_θ + (-θm)); //y
+
+			robot_positionx = d0x + Δdx; //x inches
+			robot_positiony = d0y + Δdy; //y inches
+
+
+			θ0 = θ1; //previous angle = new angle
+
+			d0x = robot_positionx; //previous x = new x
+			d0y = robot_positiony; //previous y = new y
+
+
+		
+		/////////////////////////////////////////////////////////////
+
+		pros::lcd::print(1,"position (x,y): (%f,%f)",robot_positionx,robot_positiony);
+		pros::lcd::print(5,"absolute angle degeres: %f",absolute_robot_angle);
+		pros::lcd::print(3,"Δd: [%f , %f]", Δdx, Δdy);
+		pros::lcd::print(4,"Δdl: [%f , %f]", Δdlx, Δdly);
+		pros::lcd::print(6,"x_track: %d", tracking_wheel_horizontal.get_angle());
+		pros::lcd::print(7,"dl_pol_theta, %f , r: %f", Δdl_polar_θ / 3.14159 * 180, Δdl_polar_r);
+
+		
+
+		odom_counter++;
+		pros::delay(1000);
+	}
+}
+
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -87,10 +248,12 @@ void initialize()
 {
 	pros::lcd::initialize();
 	// pros::lcd::set_text(1, "Hello PROS User!");
+	pros::lcd::set_text(7, "Shove Under  Skills     Clear ML");
+	pros::lcd::set_text(6, "go forward then outtake");
 
+	pros::lcd::register_btn0_cb(on_left_button);
 	pros::lcd::register_btn1_cb(on_center_button);
-
-	autonomous();
+	pros::lcd::register_btn2_cb(on_right_button);
 }
 
 /**
@@ -125,25 +288,72 @@ void competition_initialize()
  * from where it left off.
  */
 /* Jeremy Here, ^ this ^  might be able to be avoided if we save variables to
- * an external microSD card constantly. maybe PID constants too for easy tuning?
+ * an external microSD card constantly.
  */
 
 void autonomous()
 {
-
 	while(inertial_sensor.is_calibrating())
 	{
 		pros::delay(20);
 	}
 
-	ForwardPID(24);
-	ForwardPID(-24);
+	if(auton_picker == 0) //go forward and outtake
+	{
+		TurnPID(180);
+		TurnPID(45);
+		
+		// ForwardPID(8); // push ball
+		// intake = -95;  //outtake preload
+		// pros::delay(1000);
+		// intake.brake();
 
-	left_drivetrain = -50; //turn left (front of robot = forward)
-	right_drivetrain = 50;
-	pros::delay (200); // wait .2 sec
+	} else if (auton_picker == 1) //skills
+	{
+		starting_angle = 60;
+		ForwardPID(-30.);
+
+		flywheel_motor.move_voltage(11900);
+
+		ForwardPID(9.5);
+		
+		TurnPID(-20);
+		left_drivetrain.move_voltage(-8000);
+		right_drivetrain.move_voltage(-8000);
+		pros::delay(1000);
+		left_drivetrain.brake();
+		right_drivetrain.brake();
+
+	} else if (auton_picker = 2) //shove ball under
+	{	
+
+		ForwardPID(-30);
+		ForwardPID(6);
+
+	} else if (auton_picker = 3) //Clear Match Loads
+	{
+		wings.set_value(HIGH);
+		pros::delay(1000);
+
+		TurnPID(180);
+		pros::delay(1000);
+
+		wings.set_value(LOW);
+	}
+	
+	
+
+	// ForwardPID(24);
+	// ForwardPID(-24);
+
+	// left_drivetrain = -50; //turn left (front of robot = forward)
+	// right_drivetrain = 50;
+	// pros::delay (200); // wait .2 sec
+	// left_drivetrain = 0;
+	// right_drivetrain = 0;
 
 	// TurnPID(180);
+	// TurnPID(45);
 	// ForwardPID(24);
 	// TurnPID(0);
 
@@ -179,8 +389,8 @@ void autonomous()
 
 
 	// PRE-MATCH AUTON:
-// intake = 95;
-// ForwardPID(6); // intake ball under the bar
+// ForwardPID(8); // push ball
+// intake = -95;  //outtake preload
 // intake = 0;
 // ForwardPID(-36); // go backwards
 // TurnPID(-135);
@@ -232,7 +442,7 @@ void opcontrol()
 {
 
 	// start tasks
-	// pros::Task odometry_task(odometry);
+	pros::Task odometry_task(odometry);
 	// pros::Task flywheel_task(flywheel_bang_bang);
 	// pros::Task print_test(print_task_test);
 
@@ -251,7 +461,7 @@ void opcontrol()
 	// initialize variables
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	/////Control Loop///////////////////////////////////;////////////////////////////;//////////////////;////////////////////////;////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/////Control Loop/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	while (true)
 	{
@@ -276,7 +486,7 @@ void opcontrol()
 		}
 
 		// wings controller
-		if (controller.get_digital(DIGITAL_A))
+		if (controller.get_digital(DIGITAL_B))
 		{
 			wings.set_value(HIGH);
 		}
@@ -290,7 +500,7 @@ void opcontrol()
 		{ // function to toggle flywheel forward when R2 is pressed
 			if (!toggle_flywheel)
 			{
-				flywheel_motor.move_voltage(11900);
+				flywheel_motor.move_voltage(10000);
 				toggle_flywheel = 1;
 			}
 			else if (toggle_flywheel)
@@ -349,9 +559,9 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 	int timer = 0;
 	int settle_timer = 0;
 
-	if (timeout_msec = -1) // this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
+	if (timeout_msec == -1) // this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
 	{
-		timeout_msec = error * 30 + 5000; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
+		timeout_msec = abs(error) * 30 + 5000; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
 	}
 
 	while (timer <= timeout_msec && settle_timer <= settle_time_msec)
@@ -375,7 +585,7 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 
 		prev_error = error;
 
-		output = forward_kP * error + forward_kI * integral + forward_kD * derivative;
+		output = forward_kP * error + forward_kI * integral - forward_kD * derivative;
 
 		// cap output at 11500 milivolts (11.5 volts)
 		if (output > 11500)
@@ -406,41 +616,45 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 {
 	pros::lcd::print(0,"entered turnPID");
 
-	float error = target - inertial_sensor.get_rotation(); // target is degrees we want to be at
+	float error = target - (inertial_sensor.get_rotation() + starting_angle); // target is degrees we want to be at
 	float prev_error;
 	float integral;
 	float derivative;
 	float sensor;
 	int output;
 
-	float settle_distance = 1; // change this value to change what error the PID considers "settled"
+	float settle_distance = 3; // change this value to change what error the PID considers "settled"
 
 	int timer = 0;
 	int settle_timer = 0;
 
-	if (timeout_msec = -1) // this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
+	if (timeout_msec == -1) // this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
 	{
-		timeout_msec = error * 30 + 5000; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
+		timeout_msec = abs(error) * 30 + 5000; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
 	}
 
 	while (timer < timeout_msec && settle_timer < settle_time_msec)
 	{
 		sensor = inertial_sensor.get_rotation();
 
-		error = target - sensor;
+		error = target - (sensor + starting_angle);
 
 		// pros::lcd::print(3,"%f",reduce_angle_negative_180_to_180(370));
 
-		if (error < kI_start_at_error_value)
+		if (abs(error) < kI_start_at_error_value)
 		{
 			integral += error;
+		}
+		else
+		{
+			integral = 0;
 		}
 
 		derivative = prev_error - error;
 
 		prev_error = error;
 
-		output = turn_kP * error;
+		output = turn_kP * error + turn_kI * integral - turn_kD * derivative;
 
 		// cap output at 11500 milivolts (11 volts)
 		if (output > 11500)
@@ -452,6 +666,8 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 		left_drivetrain.move_voltage(output); // output needs to be -12000 to 12000 milivolts
 		right_drivetrain.move_voltage(-output);
 
+		pros::lcd::print(4,"settle_timer: %d", settle_timer);
+		pros::lcd::print(2,"integral: %f", integral);
 		pros::lcd::print(3,"output: %d", output);
 
 		if (abs(error) < settle_distance) // absolute value so it never goes negative
@@ -466,399 +682,18 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 		timer += 20;
 
 		pros::lcd::print(1,"error_angle: %f", error);
+		pros::lcd::print(5,"loop?: %d", timer < timeout_msec && settle_timer < settle_time_msec);
+		pros::lcd::print(6,"timeout active?: %d", timer < timeout_msec);
+		pros::lcd::print(7,"settle active?: %d", settle_timer < settle_time_msec);
+
 
 		pros::delay(20);
 	}
+
+	left_drivetrain.move_voltage(0); // output needs to be -12000 to 12000 milivolts
+	right_drivetrain.move_voltage(0);
 }
 
-void flywheel_bang_bang() // BANG BANG control
-{
-	int flywheel_counter = 0;
-	int flywheel_rpm = 0;;
-	while (true)
-	{
-		//get_velocity returns centidegrees per second, so we convert to rotations per minute
-		flywheel_rpm = (float)flywheel_sensor.get_velocity() / 360 *60;
-
-		if (toggle_flywheel)
-		{
-			if (abs(flywheel_rpm) < 3900) 
-			{
-				flywheel_motor.move_voltage(11500*toggle_flywheel);
-			}
-			else
-			{
-				flywheel_motor.move_voltage(0);
-			}
-		} else
-		{
-			flywheel_motor.brake();
-		}
-		pros::lcd::print(0,"flywheel iteration #: %d",flywheel_counter);
-		pros::lcd::print(1,"flywheel rpm: %d",flywheel_rpm);
-		pros::lcd::print(2,"flywheel_toggle: %d",toggle_flywheel);
-		flywheel_counter++;
-		pros::delay(20);
-		//loopRate.delay(okapi::QFrequency(50.0)); // runs exactly 20ms between starts of each iteration
-	}
-}
-
-void odometry()
-{
-	tracking_wheel_horizontal.set_position(0);
-	tracking_wheel_vertical.set_position(0);
-	int odom_counter = 0;
-
-	double absolute_robot_angle; //"θ1" in odom paper, but in degrees here
-	double θ1;
-	double robot_position[2] = {0,0}; //[ x , y ] in inches
-	double Δd[2];
-	double Δdl[2] = {0,0};
-	double Δdl_polar[2]; //{ r, θ }
-
-	double y_offset = 0.25; //initialize //"SR" in odom paper, offset from vertical tracking wheel to tracking center in inches
-	double x_offset = -2.5; //"SS" in odom paper, offset from horizontal tracking wheel to tracking center in inches. It's negative because left is -x direction 
-	double y_arc;
-	double x_arc;
-
-	double Rr = 0; //at the "last reset" in this case the beginning
-	double Sr = 0; //at the "last reset" in this case the beginning
-	double θr = 0;  //at the "last reset" in this case the beginning
-
-	double θm; //average orientation used for converting to field coordinates
-
-	double d0[2] = {0,0}; //previous robot position
-	double θ0; //previous robot angle
-	double prev_tracking_wheel_horizontal;
-	double prev_tracking_wheel_vertical;
-
-	double ΔS = tracking_wheel_vertical.get_position() - prev_tracking_wheel_vertical;
-	double ΔR = tracking_wheel_horizontal.get_position() - prev_tracking_wheel_horizontal;
-	double Δθ; //radians
-	
-
-	//double ΔRr = tracking_wheel_vertical.get_position() - Rr;   //only needed to find angle
-	//double ΔLr = tracking_wheel_horizontal.get_position() - Sr; //only needed to find angle
-
-
-	int calibrate_timer = 0;
-
-	inertial_sensor.reset();
-	while(inertial_sensor.is_calibrating())
-	{
-		pros::lcd::print(1, "inertial taken %f seconds to calibrate", (float)calibrate_timer/1000);
-		calibrate_timer += 20;
-		pros::delay(20);
-
-	}
-
-	while(true)
-	{
-		// Absolute Angle //////////////////////////////////////////////////////////////
-			absolute_robot_angle = reduce_angle_negative_180_to_180(inertial_sensor.get_rotation()); //degrees
-
-			θ1 = absolute_robot_angle / 180 * 3.14159; //radians
-
-			Δθ = (θ1 - θ0); //radians
-			θm = θ0 + (Δθ/2); //radians
-		/////////////////////////////////////////////////////////////
-
-		// Absolute Position //////////////////////////////////////////////////////////////
-			ΔS = (float)(tracking_wheel_horizontal.get_position() - prev_tracking_wheel_horizontal)/ 100 / 360 * (2.75 * 3.14159);
-			ΔR = (float)(tracking_wheel_vertical.get_position() - prev_tracking_wheel_vertical)/ 100 / 360 * (2.75 * 3.14159);
-
-			prev_tracking_wheel_horizontal = tracking_wheel_horizontal.get_position();
-			prev_tracking_wheel_vertical = tracking_wheel_vertical.get_position();
-
-
-			if (Δθ == 0)
-			{
-				Δdl[0] = ΔS;
-				Δdl[1] = ΔR;
-			} else
-			{
-				Δdl[0] = 2*sin((Δθ/2)) *(ΔS/Δθ + x_offset); //x
-				Δdl[1] = 2*sin((Δθ/2)) * (ΔR/Δθ + y_offset); //y
-			}
-
-			Δdl_polar[0] = sqrt(pow(Δdl[0],2) + pow(Δdl[1],2));
-			Δdl_polar[1] = atan(Δdl[1] / Δdl[0]) + (-θm); //polar angle rotated by -θm = global polar angle
-
-			Δd[0] = Δdl_polar[0] * std::cos(Δdl_polar[1]); //x
-			Δd[1] = Δdl_polar[0] * std::sin(Δdl_polar[1]); //y
-
-			robot_position[0] = d0[0] + Δd[0]; //x inches
-			robot_position[1] = d0[1] + Δd[1]; //y inches
-
-
-			θ0 = θ1; //previous angle = new angle
-
-			d0[0] = robot_position[0]; //previous x = new x
-			d0[1] = robot_position[1]; //previous y = new y
-
-
-		
-		/////////////////////////////////////////////////////////////
-
-		pros::lcd::print(0,"position (x,y): (%f,%f)",robot_position[0],robot_position[1]);
-		pros::lcd::print(1,"angle radians: %f",Δθ);
-		pros::lcd::print(2,"absolute angle degeres: %f",absolute_robot_angle);
-		pros::lcd::print(3,"Δd: [%f , %f]", Δd[0], Δd[1]);
-		pros::lcd::print(4,"Δdl: [%f , %f]", Δdl[0], Δdl[1]);
-		pros::lcd::print(5,"Δdl_polar: [%f , %f]", Δdl_polar[0], Δdl_polar[1]);
-		pros::lcd::print(6,"y_pos: %f", Δd[1]);
-		
-
-		odom_counter++;
-		pros::delay(1000);
-	}
-}
-
-
-/*---------------------------------------//TRACKING SENSOR VARIABLES//------------------------------------------------------*/
-
-float Forward_Tracker_Distance = 2.25;            //Distance from forward tracking wheel to robot center
-float Sideways_Tracker_Distance = 3.875;            //Distance from sideways tracking wheel to robot center
-
-float Forward_Tracker_Inches_per_Degree = 0.023617;  //Ratio used to convert degrees on tracking wheels to inches of movement 
-float Sideways_Tracker_Inches_per_Degree = 0.023949;  //Use "Calibrate Trackers" program to calculate these values 
-
-float Previous_Forward_Tracker_Reading = 0;       //Variables used to calculate the change in tracker readings
-float Previous_Sideways_Tracker_Reading = 0;      //These changes will hereafter be referred to as "deltas"
-
-float Delta_Forward_Tracker = 0;                  //Changes in the forward and sideways tracking wheels. These changes
-float Delta_Sideways_Tracker = 0;                 //are used to calculate each movement and update global position
-
-float Current_Forward_Tracker_Reading = 0;        //These variables are used to establish tracking wheel readings at a given
-float Current_Sideways_Tracker_Reading = 0;       //time so that changes can be periodically noted.
-
-/*-----------------------------------------//POSITIONING VARIABLES//--------------------------------------------------------*/
-
-float local_X_position = 0;                       // Local position variables used to specify local movements which will then
-float local_Y_position = 0;                       // be used as a reference for Global Position.
-
-float absolute_global_X = 0;                      // Absolute position in terms of x and y coordinates
-float absolute_global_Y = 0;
-
-float previous_global_X = 0;                      // Variables used to store previous global positions. These will be used to 
-float previous_global_Y = 0;                      // calculate changes in global position.
-
-float delta_global_X = 0;                         // Change in absolute position in terms of x and y coordinates.  These values
-float delta_global_Y = 0;                         // are recalculated with each loop of the "update_robot_position" function.
-
-float local_polar_angle = 0;                      // Variables for robot position in polar coordinates.  Local angle and length
-float local_polar_length = 0;                     // are used for each localized movement while global refers to the absolute
-float global_polar_angle = 0;                     // Polar angle
-
-float absolute_heading_degrees = 0;               // Absolute heading of the robot with the option of listing it in degrees
-float absolute_heading_radians = 0;               // or radians.
-
-float previous_heading_degrees = 0;               // Variables used to store previous heading in degrees or radians.
-float previous_heading_radians = 0;
-
-float delta_heading_degrees = 0;                  // Variables used to store the change in heading for every localized
-float delta_heading_radians = 0;                  // movement in degrees or radians.
-
-
-
-
-void update_tracking_sensors()
-{
-  // Set current tracker and heading measurements
-  Current_Forward_Tracker_Reading = (float)tracking_wheel_vertical.get_position()/ 100 / 360 * (2.75 * 3.14159);
-  Current_Sideways_Tracker_Reading = (float)tracking_wheel_horizontal.get_position()/ 100 / 360 * (2.75 * 3.14159);
-//   absolute_heading_degrees = reduce_angle_negative_180_to_180(inertial_sensor.get_rotation());//*1.16 //1.16 represents a drift correction factor.
-  absolute_heading_radians = absolute_heading_degrees / 180 * 3.14159;
-
-
-  // Calculate change in tracker and heading measurements. Used to calculate local movements
-  Delta_Forward_Tracker = Current_Forward_Tracker_Reading - Previous_Forward_Tracker_Reading;
-  Delta_Sideways_Tracker = Current_Sideways_Tracker_Reading - Previous_Sideways_Tracker_Reading;
-  delta_heading_degrees = absolute_heading_degrees-previous_heading_degrees;
-  delta_heading_radians = absolute_heading_radians-previous_heading_radians;
-
-  // Set current tracker readings and heading as "previous" values.  Will allow us to calculate
-  // changes (deltas) in next loop.
-  Previous_Forward_Tracker_Reading = Current_Forward_Tracker_Reading;
-  Previous_Sideways_Tracker_Reading = Current_Sideways_Tracker_Reading;
-  previous_heading_degrees = absolute_heading_degrees;
-  previous_heading_radians = absolute_heading_radians;
-}
-
-void update_robot_position()
-{
-  // If the heading of the robot has not changed, local x and local y values will be directly equal to the distances measured by
-  // the forward and sideways tracking wheels. 
-  if(delta_heading_radians == 0)
-  {
-    local_X_position = Delta_Sideways_Tracker;
-    local_Y_position = Delta_Forward_Tracker;
-  }
-  // If the angle has changed, then local x and y can be obtained by calculating the chord length of the arc intercepted by the
-  // robot's movement.  The chord length is given by (2* sin(theta/2)*radius), where theta is the heading of the robot and the radius
-  // is calculated by dividing the tracker wheel distance by the heading of the robot then adding the tracker wheel distance from
-  // robot center. (Radius = Arc Length/Angle)
-  else
-  {
-    local_X_position = (2*sin(delta_heading_radians/2))*((Delta_Sideways_Tracker/delta_heading_radians)+Sideways_Tracker_Distance);
-    local_Y_position = (2*sin(delta_heading_radians/2))*((Delta_Forward_Tracker/delta_heading_radians)+Forward_Tracker_Distance);
-  }
-
-  // We convert local X and Y into polar coordinates.  If there are both zero (i.e. the robot hasn't moved), we immediately set local
-  // polar angle and length to 0.
-  if(local_X_position == 0 && local_Y_position == 0)
-  {
-    local_polar_angle = 0;
-    local_polar_length = 0;
-  }
-  // Otherwise, local polar angle is found by taking the arctan of our position and local polar length is found by applying the 
-  // distance equation for our x and y coordinates.
-  else
-  {
-    local_polar_angle = atan2(local_Y_position,local_X_position);
-    local_polar_length = sqrt(pow(local_X_position,2)+pow(local_Y_position,2));
-  }
-
-  // Global polar angle found by taking the local polar angle and subtracting the previous heading and then half of the change in 
-  // heading.  This corrects for our shifted local coordinate system
-  global_polar_angle = local_polar_angle - previous_heading_radians - (delta_heading_radians/2);
-
-  // Change in global x and y can then be calculated by converting our local polar coordinates back to X and Y values
-  delta_global_X = local_polar_length*cos(global_polar_angle);
-  delta_global_Y = local_polar_length*sin(global_polar_angle);
-
-  // Adding our change in global position to our previous global posiiton gives us our new absolute position in terms of x and
-  // y coordinates.
-  absolute_global_X = previous_global_X + delta_global_X;
-  absolute_global_Y = previous_global_Y + delta_global_Y;
-
-  // Set previous positions as our current absolute positions so that the next run can properly calculate changes.
-  previous_global_X = absolute_global_X;
-  previous_global_Y = absolute_global_Y;
-
-  // Set previous heading as our current heading for the same reason.
-  previous_heading_radians = absolute_heading_radians;
-}
-
-void track_position()
-{
-  while(true)
-  {
-    update_robot_position();
-    update_tracking_sensors();
-	
-
-    //Print absolute x, absolute y, and heading on the brain screen
-    pros::lcd::print(0, "Absolute X: %f Inches", absolute_global_X);
-    pros::lcd::print(1, "Absolute Y: %f Inches", absolute_global_Y);
-    pros::lcd::print(2, "Absolute Heading: %f Radians, %f Degrees", absolute_heading_radians, absolute_heading_degrees);
-  }
-}
-
-/*
-void goTo(float target_x, float target_y, float settle_time_msec, float kI_start_at_angle, float kI_start_at_distance, int timeout_msec)
-{
-	//Odom variables
-	float relative_x; //inches
-	float relative_y; //inches
-	float error_distance; //inches
-	float error_angle; //centidegrees
-
-	//PID variables for both distance and angle
-	float prev_error_distance;
-	float prev_error_angle;
-	float integral;
-	float derivative;
-	int output_distance;
-	int output_angle;
-
-	float settle_distance = 2; // change this value to change what error the PID considers "settled"
-	float settle_angle = 1;
-
-	int timer = 0;
-	int settle_timer = 0;
-
-	if (timeout_msec = -1) // this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
-	{
-		timeout_msec = error_angle * 30 + error_distance * 30 + 1000; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
-	}
-
-	while(timer < timeout_msec && settle_timer < settle_time_msec) //give this an end condition
-	{
-		// Error from Odom /////////////////////////////////////////////////////////////////////////////
-			relative_x = target_x - robot_position[0];
-			relative_y = target_y - robot_position[1];
-
-			error_distance = sqrt(pow(relative_x,2) + pow(relative_y,2));
-
-		error_angle = atan(relative_y / relative_x) / 3.1415 * 180 - absolute_robot_angle; //centidegrees
-		////////////////////////////////////////////////////////////////////////////
-
-		
-		// Distance PID /////////////////////////////////////////////////////////////////////////////
-			if (error_distance < kI_start_at_distance)
-			{
-				integral += error_distance;
-			}
-
-			derivative = prev_error_distance - error_distance;
-
-			prev_error_distance = error_distance;
-
-			output_distance = forward_kP * (error_distance + forward_kI * integral + forward_kD * derivative);
-		////////////////////////////////////////////////////////////////////////////
-
-
-		// Angle PID /////////////////////////////////////////////////////////////////////////////
-			if (error_angle < kI_start_at_angle)
-			{
-				integral += error_angle;
-			}
-
-			derivative = prev_error_angle - error_angle;
-
-			prev_error_angle = error_angle;
-
-			output_angle = turn_kP * (error_angle + turn_kI * integral + turn_kD * derivative);
-		////////////////////////////////////////////////////////////////////////////
-
-
-			////reduce output_distance if error_angle is too large? Coach mentioned using cos(error_angle) or something like that
-		
-
-		// cap output at 11000 milivolts (11 volts) ... scales linearly to cap max volts at 11 but keep same ratio of power to keep turning
-		if (output_distance > 11000 && output_distance > output_angle)
-		{
-			output_angle /= (output_distance/11000);
-			output_distance /= (output_distance / 11000);
-		}
-		else if (output_angle > 11000 && output_angle > output_distance)
-		{
-			output_angle /= (output_angle/11000);
-			output_distance /= (output_angle / 11000);
-		}
-
-		// output to drivetrain
-		left_drivetrain.move_voltage(output_distance + output_angle); // output needs to be -12000 to 12000 milivolts
-		right_drivetrain.move_voltage(output_distance - output_angle); 
-
-
-		if (abs(error_distance) < settle_distance && abs(error_angle) < settle_angle) // absolute value so it never goes negative
-		{
-			settle_timer += 20;
-		}
-		else
-		{
-			settle_timer = 0;
-		}
-
-		timer += 20;
-
-		pros::delay(20);
-
-	}
-}
-*/
 
 double reduce_angle_negative_180_to_180(double angle_degrees)
 {
@@ -878,11 +713,5 @@ double reduce_angle_negative_180_to_180(double angle_degrees)
 		pros::lcd::print(6,"reduce angle(loop): %f",angle_degrees);
 	}
 
-	pros::lcd::print(7,"Bruh");
 	return(angle_degrees);
-}
-
-void update_odom_sensors()
-{
-
 }
