@@ -52,6 +52,10 @@ float starting_angle = 0; //angle of robot at start of auton, matters if we star
 int toggle_flywheel = 0;
 int auton_picker = 0;
 
+float robot_positionx = 0; //robot x position in inches
+float robot_positiony = 0; //robot y position in inches
+float absolute_robot_angle; //"θ1" in odom paper, but in degrees here
+
 
 /*
  * A callback function for LLEMU's center button.
@@ -114,10 +118,8 @@ void odometry()
 	tracking_wheel_vertical.set_position(0);
 	int odom_counter = 0;
 
-	float absolute_robot_angle; //"θ1" in odom paper, but in degrees here
 	float θ1;
-	float robot_positionx = 0; //[ x , y ] in inches
-	float robot_positiony = 0; //[ x , y ] in inches
+
 	float Δdx;
 	float Δdy;
 	float Δdlx = 0;
@@ -127,8 +129,6 @@ void odometry()
 
 	float y_offset = -2.5; //initialize //"SR" in odom paper, offset from vertical tracking wheel to tracking center in inches
 	float x_offset = 0.25; //"SS" in odom paper, offset from horizontal tracking wheel to tracking center in inches. It's negative because left is -x direction 
-	float y_arc;
-	float x_arc;
 
 	float Rr = 0; //at the "last reset" in this case the beginning
 	float Sr = 0; //at the "last reset" in this case the beginning
@@ -166,7 +166,7 @@ void odometry()
 	while(true)
 	{
 		// Absolute Angle //////////////////////////////////////////////////////////////
-			absolute_robot_angle = 0; //reduce_angle_negative_180_to_180(inertial_sensor.get_rotation()); //degrees
+			absolute_robot_angle = reduce_angle_negative_180_to_180(inertial_sensor.get_rotation()); //degrees
 
 			θ1 = absolute_robot_angle / 180 * 3.14159; //radians
 
@@ -194,8 +194,8 @@ void odometry()
 			{
 				pros::lcd::print(1,"delta_S: %f", ΔS);
 
-				Δdlx = 2*sin((Δθ/1.5)) *(ΔS/Δθ + x_offset); //x       just adding the offset makes me feel suspicious about infinite slide when sin(Δθ / 2) != 0
-				Δdly = 2*sin((Δθ/1.5)) * (ΔR/Δθ + y_offset); //y		std::sin and std::cos use RADIANS
+				Δdlx = 2*sin((Δθ/2)) *(ΔS/Δθ + x_offset); //x       just adding the offset makes me feel suspicious about infinite slide when sin(Δθ / 2) != 0
+				Δdly = 2*sin((Δθ/2)) * (ΔR/Δθ + y_offset); //y		std::sin and std::cos use RADIANS
 
 				pros::lcd::print(2,"delta_dlx: %f",Δdlx);
 
@@ -233,7 +233,7 @@ void odometry()
 		
 
 		odom_counter++;
-		pros::delay(1000);
+		pros::delay(20);
 	}
 }
 
