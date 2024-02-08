@@ -300,8 +300,8 @@ void autonomous()
 
 	if(auton_picker == 0) //go forward and outtake
 	{
+		ForwardPID(24);
 		TurnPID(180);
-		TurnPID(45);
 		
 		// ForwardPID(8); // push ball
 		// intake = -95;  //outtake preload
@@ -333,7 +333,7 @@ void autonomous()
 	} else if (auton_picker = 3) //Clear Match Loads
 	{
 		wings.set_value(HIGH);
-		pros::delay(1000);
+		pros::delay(1000); // 1 second
 
 		TurnPID(180);
 		pros::delay(1000);
@@ -356,36 +356,6 @@ void autonomous()
 	// TurnPID(45);
 	// ForwardPID(24);
 	// TurnPID(0);
-
-
-// 	//Crude Pre-Match Auton
-// intake = 95;
-// left_drivetrain = 95; //intake ball under bar
-// right_drivetrain = 95;
-// pros::delay (100); //1000 msec (1 sec)
-
-// intake = 0; 
-// left_drivetrain = -95;//back up into corner ground ball
-// right_drivetrain = -95;
-// pros::delay (1000); // wait 1 sec
-
-// left_drivetrain = 50; //turn left (front of robot = forward)
-// right_drivetrain = -50;
-// pros::delay (500); // wait .5 sec
-
-// left_drivetrain = -95;//back up into wall
-// right_drivetrain = -95;
-// pros::delay (1000);// wait 1 sec
-
-// left_drivetrain = 50; //turn left (front of robot = forward)
-// right_drivetrain = -50;
-// pros::delay (500); // wait .5 sec
-
-// left_drivetrain = -95;//back up into wall
-// right_drivetrain = -95; 
-
-// left_drivetrain = 0; //Stop moving
-// right_drivetrain = 0;
 
 
 	// PRE-MATCH AUTON:
