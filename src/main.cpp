@@ -300,7 +300,7 @@ void autonomous()
 
 	if(auton_picker == 0) //go forward and outtake
 	{
-		left_top_drive.move_voltage(11000);
+		left_top_drive.move_voltage(11000); // left top is only moving forna little bit. Test wire and motor viability!
 		
 		// ForwardPID(8); // push ball
 		// intake = -95;  //outtake preload
