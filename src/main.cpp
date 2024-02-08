@@ -300,9 +300,7 @@ void autonomous()
 
 	if(auton_picker == 0) //go forward and outtake
 	{
-		ForwardPID(24);
-		TurnPID(180);
-		ForwardPID(-24);
+		left_top_drive.move_voltage(11000);
 		
 		// ForwardPID(8); // push ball
 		// intake = -95;  //outtake preload
