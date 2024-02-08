@@ -21,7 +21,7 @@ pros::Imu inertial_sensor(20);
 pros::Rotation flywheel_sensor(7, true);
 
 // define drivetrain motors
-pros::Motor left_top_drive(2, true);
+pros::Motor left_top_drive(12, true);
 pros::Motor left_back_drive(3, false);
 pros::Motor left_front_drive(4, true);
 pros::Motor right_top_drive(10, false);
@@ -302,6 +302,7 @@ void autonomous()
 	{
 		ForwardPID(24);
 		TurnPID(180);
+		ForwardPID(-24);
 		
 		// ForwardPID(8); // push ball
 		// intake = -95;  //outtake preload
