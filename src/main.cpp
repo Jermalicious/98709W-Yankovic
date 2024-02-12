@@ -21,7 +21,7 @@ pros::Imu inertial_sensor(20);
 pros::Rotation flywheel_sensor(7, true);
 
 // define drivetrain motors
-pros::Motor left_top_drive(2, true);
+pros::Motor left_top_drive(12, true);
 pros::Motor left_back_drive(3, false);
 pros::Motor left_front_drive(4, true);
 pros::Motor right_top_drive(10, false);
@@ -34,8 +34,13 @@ pros::Motor_Group right_drivetrain({right_top_drive, right_back_drive, right_fro
 pros::Motor_Group intake({left_intake, right_intake});										// both intake motors
 
 // declare functions so that we can define them at the bottom of this page
-void ForwardPID(float target, float settle_time_msec = 500, float kI_start_at_error_value = 7, int timeout_msec = -1);
-void TurnPID(float target, float settle_time_msec = 800, float kI_start_at_error_value = 16, int timeout_msec = -1);
+
+//passes in distance to a goal and returns a motor value between -11500 and 11500 milivolts
+//returns 12001 when successfully finished movement
+//returns 12002 when movement times out
+//returns 12003 if unexpected failure
+int forwardPID(float target, bool new_movement, float settle_time_msec = 500, float kI_start_at_error_value = 7, int timeout_msec = -1); 
+int turnPID(float target, bool new_movement, float settle_time_msec = 800, float kI_start_at_error_value = 16,  int timeout_msec = -1);
 double reduce_angle_negative_180_to_180(double angle);
 
 // declare global variables
@@ -118,12 +123,12 @@ void odometry()
 	tracking_wheel_vertical.set_position(0);
 	int odom_counter = 0;
 
-	float θ1;
+	float θ1; //absolute angle in radians
 
-	float Δdx;
-	float Δdy;
-	float Δdlx = 0;
-	float Δdly = 0;
+	float Δdx; //change in x according to the field
+	float Δdy; //change in y according to the field
+	float Δdlx = 0; //change in x according to the robot
+	float Δdly = 0; //change in y according to the robot
 	float Δdl_polar_r;
 	float Δdl_polar_θ;
 
@@ -184,20 +189,20 @@ void odometry()
 			
 			if (Δθ == 0)
 			{
-				pros::lcd::print(1,"delta_S: %f", ΔS);
+				// pros::lcd::print(1,"delta_S: %f", ΔS);
 				
 				Δdlx = ΔS;
 				Δdly = ΔR;
 
-				pros::lcd::print(2,"delta_dlx: %f",Δdlx);
+				// pros::lcd::print(2,"delta_dlx: %f",Δdlx);
 			} else
 			{
-				pros::lcd::print(1,"delta_S: %f", ΔS);
+				// pros::lcd::print(1,"delta_S: %f", ΔS);
 
-				Δdlx = 2*sin((Δθ/2)) *(ΔS/Δθ + x_offset); //x       just adding the offset makes me feel suspicious about infinite slide when sin(Δθ / 2) != 0
+				Δdlx = 2*sin((Δθ/2)) * (ΔS/Δθ + x_offset); //x       just adding the offset makes me feel suspicious about infinite slide when sin(Δθ / 2) != 0
 				Δdly = 2*sin((Δθ/2)) * (ΔR/Δθ + y_offset); //y		std::sin and std::cos use RADIANS
 
-				pros::lcd::print(2,"delta_dlx: %f",Δdlx);
+				// pros::lcd::print(2,"delta_dlx: %f",Δdlx);
 
 			}
 ///////////////////Probably OK to here
@@ -223,12 +228,12 @@ void odometry()
 		
 		/////////////////////////////////////////////////////////////
 
-		pros::lcd::print(1,"position (x,y): (%f,%f)",robot_positionx,robot_positiony);
-		pros::lcd::print(5,"absolute angle degeres: %f",absolute_robot_angle);
-		pros::lcd::print(3,"Δd: [%f , %f]", Δdx, Δdy);
-		pros::lcd::print(4,"Δdl: [%f , %f]", Δdlx, Δdly);
-		pros::lcd::print(6,"x_track: %d", tracking_wheel_horizontal.get_angle());
-		pros::lcd::print(7,"dl_pol_theta, %f , r: %f", Δdl_polar_θ / 3.14159 * 180, Δdl_polar_r);
+		pros::lcd::print(0,"position (x,y): (%f,%f)",robot_positionx,robot_positiony);
+		pros::lcd::print(1,"absolute angle degeres: %f",absolute_robot_angle);
+		// pros::lcd::print(3,"Δd: [%f , %f]", Δdx, Δdy);
+		// pros::lcd::print(4,"Δdl: [%f , %f]", Δdlx, Δdly);
+		// pros::lcd::print(6,"x_track: %d", tracking_wheel_horizontal.get_angle());
+		// pros::lcd::print(7,"dl_pol_theta, %f , r: %f", Δdl_polar_θ / 3.14159 * 180, Δdl_polar_r);
 
 		
 
@@ -237,6 +242,40 @@ void odometry()
 	}
 }
 
+
+void driveTo(float x_goal, float y_goal)
+{
+	int forward_output = 0;
+	int turning_output = 0;
+
+	float forward_error = sqrt(pow(x_goal-robot_positionx,2) + pow(y_goal-robot_positiony,2));;
+	
+	bool driveTo_loop = true;
+
+	forwardPID(forward_error,1);
+
+	while (driveTo_loop)
+	{
+	forward_error = sqrt(pow(x_goal-robot_positionx,2) + pow(y_goal-robot_positiony,2));
+
+		forward_output = forwardPID(forward_error,0);
+		// turning_output = TurnPID();
+		
+		if (forward_output > 12000)
+		{
+			forward_output = 0;
+			driveTo_loop = false;
+		}
+		if (turning_output > 12000)
+		{
+			turning_output = 0;
+			driveTo_loop = false;
+		}
+
+
+
+	}
+}
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -254,6 +293,8 @@ void initialize()
 	pros::lcd::register_btn0_cb(on_left_button);
 	pros::lcd::register_btn1_cb(on_center_button);
 	pros::lcd::register_btn2_cb(on_right_button);
+
+	pros::Task odometry_task(odometry);
 }
 
 /**
@@ -300,8 +341,7 @@ void autonomous()
 
 	if(auton_picker == 0) //go forward and outtake
 	{
-		TurnPID(180);
-		TurnPID(45);
+		driveTo(0,24);
 		
 		// ForwardPID(8); // push ball
 		// intake = -95;  //outtake preload
@@ -311,13 +351,13 @@ void autonomous()
 	} else if (auton_picker == 1) //skills
 	{
 		starting_angle = 60;
-		ForwardPID(-30.);
+		// ForwardPID(-30.);
 
 		flywheel_motor.move_voltage(11900);
 
-		ForwardPID(9.5);
+		// ForwardPID(9.5);
 		
-		TurnPID(-20);
+		// turnPID(-20);
 		left_drivetrain.move_voltage(-8000);
 		right_drivetrain.move_voltage(-8000);
 		pros::delay(1000);
@@ -327,15 +367,15 @@ void autonomous()
 	} else if (auton_picker = 2) //shove ball under
 	{	
 
-		ForwardPID(-30);
-		ForwardPID(6);
+		// ForwardPID(-30);
+		// ForwardPID(6);
 
 	} else if (auton_picker = 3) //Clear Match Loads
 	{
 		wings.set_value(HIGH);
 		pros::delay(1000);
 
-		TurnPID(180);
+		// turnPID(180);
 		pros::delay(1000);
 
 		wings.set_value(LOW);
@@ -387,41 +427,6 @@ void autonomous()
 // left_drivetrain = 0; //Stop moving
 // right_drivetrain = 0;
 
-
-	// PRE-MATCH AUTON:
-// ForwardPID(8); // push ball
-// intake = -95;  //outtake preload
-// intake = 0;
-// ForwardPID(-36); // go backwards
-// TurnPID(-135);
-// ForwardPID(-48); // push team ball behind to the loading ground bar
-// TurnPID(-180);
-// ForwardPID(-24); // push team ball into goal
-
-	// SKILLS RUN:
-	//  for(int i = 0; i < 9; i++) //runs the fire routine 42 times (two extra for now)
-	//  {
-	//  	cata_motor.move_relative(150 * 3, 99); //180 Degrees = 1 fire; 150 ticks (red motor encoder units) = 180 degrees; gear_ratio = 36:12 = 3:1
-
-	// }
-
-	// move to other zone
-
-	// ForwardPID(.5 * 12); //Move away from goal before sensor reset so no hit corner
-	// TurnPID(-45); //Turn to easy angle before sensor reset
-
-	// inertial_sensor.reset(); //because we start at a weird diagonal angle, this changes our absolute "forward" angle to straight horizontally toward the other zone
-
-	// ForwardPID(8 * 12); //moves forward 8 feet into other zone
-	// TurnPID(90); //turn toward goal
-	// ForwardPID(2 * 12); //move toward goal
-	// TurnPID(180); //turn toward bar
-	// ForwardPID(2 * 12); // move toward bar
-	// TurnPID(90); //turn to be parallel with the goal so we can set up our movement to shove triballs under
-	// ForwardPID(2 * 12); //move parallel with the goal
-	// TurnPID(0); //turn toward goal
-
-	// ForwardPID(3 * 12); //score some triballs, baby!
 }
 
 /**
@@ -440,16 +445,6 @@ void autonomous()
 
 void opcontrol()
 {
-
-	// start tasks
-	pros::Task odometry_task(odometry);
-	// pros::Task flywheel_task(flywheel_bang_bang);
-	// pros::Task print_test(print_task_test);
-
-	// pros::Task odometry(track_position);
-
-	// decalre variables
-
 	float drive_forward;
 	float drive_turn;
 
@@ -461,7 +456,7 @@ void opcontrol()
 	// initialize variables
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	/////Control Loop/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/////Control Loop  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	while (true)
 	{
@@ -542,39 +537,44 @@ void opcontrol()
 	}
 }
 
-void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_value, int timeout_msec)
+int forwardPID(float error, bool new_movement, float settle_time_msec, float kI_start_at_error_value, int timeout_msec) //FIX HOW TIMEOUT IS CALCULATED!
 {
 
-	tracking_wheel_vertical.reset_position();
-	int sensor;
+	static float prev_error = 0;
+	static float integral = 0;
+	static int timer = 0;
+	static int settle_timer = 0;
 
-	float error = target - tracking_wheel_vertical.get_position() / 360 * (2.75 * 3.14159);
-	float prev_error;
-	float integral;
+	if (new_movement) 	//since static variables stick around between function calls, we need to reset these values...
+	{					//...when we start a new movement so it doesn't "remember" the previous movement
+		prev_error = 0;
+		integral = 0;
+		timer = 0;
+		settle_timer = 0;
+	}
+
+	int sensor = tracking_wheel_vertical.get_position();
+
 	float derivative;
 	int output = 0;
 
 	float settle_distance = 2; // change this value to change what error the PID considers "settled"
 
-	int timer = 0;
-	int settle_timer = 0;
+
+
 
 	if (timeout_msec == -1) // this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
 	{
 		timeout_msec = abs(error) * 30 + 5000; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
 	}
 
-	while (timer <= timeout_msec && settle_timer <= settle_time_msec)
+	if (timer <= timeout_msec && settle_timer <= settle_time_msec)
 	{
-
-		sensor = tracking_wheel_vertical.get_position();
-
 		// pros::lcd::print(2,"tracking wheel: %d",sensor);
 		// pros::lcd::print(3,"error: %f",error);
 		// pros::lcd::print(4,"output: %f",forward_kP*(error + forward_kI*integral + forward_kD*derivative));
 		// pros::lcd::print(5,"output: %d",output);
 
-		error = target - ((float)sensor / 36000 * 2.75 * 3.14159); // turns centidegrees into rotations, then turns rotations into inches travelled. We typecast sensor into a float because ints truncate, for example 50/100 = 0
 
 		if (error < kI_start_at_error_value)
 		{
@@ -593,10 +593,6 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 			output = 11500;
 		}
 
-		// output to drivetrain
-		left_drivetrain.move_voltage(output); // output needs to be between -12000 to 12000 milivolts
-		right_drivetrain.move_voltage(output);
-
 		if (abs(error) < settle_distance) // absolute value so it never goes negative
 		{
 			settle_timer += 20;
@@ -608,32 +604,52 @@ void ForwardPID(float target, float settle_time_msec, float kI_start_at_error_va
 
 		timer += 20;
 
-		pros::delay(20);
+		return(output);
+	}
+
+	if(settle_timer > settle_time_msec) //successfully finished movement
+	{
+		return(12001);
+	} else if (timer > timeout_msec) //timed out
+	{
+		return(12002);
+	} else //if this is called, something werid happened and you need to check it out
+	{
+		return(12003);
+		pros::lcd::print(0,"FORWARD_PID FAILURE");
 	}
 }
 
-void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value, int timeout_msec)
+int turnPID(float target, bool new_movement, float settle_time_msec, float kI_start_at_error_value, int timeout_msec)
 {
 	pros::lcd::print(0,"entered turnPID");
 
-	float error = target - (inertial_sensor.get_rotation() + starting_angle); // target is degrees we want to be at
-	float prev_error;
-	float integral;
+	static float prev_error = 0;
+	static float integral = 0;
+	static int timer = 0;
+	static int settle_timer = 0;
+
+	if (new_movement) 	//since static variables stick around between function calls, we need to reset these values...
+	{					//...when we start a new movement so it doesn't "remember" the previous movement
+		prev_error = 0;
+		integral = 0;
+		timer = 0;
+		settle_timer = 0;
+	}
+
+	float error = target - (inertial_sensor.get_rotation()); // target is degrees we want to be at
 	float derivative;
 	float sensor;
 	int output;
 
 	float settle_distance = 3; // change this value to change what error the PID considers "settled"
 
-	int timer = 0;
-	int settle_timer = 0;
-
 	if (timeout_msec == -1) // this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
 	{
 		timeout_msec = abs(error) * 30 + 5000; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
 	}
 
-	while (timer < timeout_msec && settle_timer < settle_time_msec)
+	if (timer < timeout_msec && settle_timer < settle_time_msec)
 	{
 		sensor = inertial_sensor.get_rotation();
 
@@ -662,10 +678,6 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 			output = 11500;
 		}
 
-		// output to drivetrain
-		left_drivetrain.move_voltage(output); // output needs to be -12000 to 12000 milivolts
-		right_drivetrain.move_voltage(-output);
-
 		pros::lcd::print(4,"settle_timer: %d", settle_timer);
 		pros::lcd::print(2,"integral: %f", integral);
 		pros::lcd::print(3,"output: %d", output);
@@ -686,12 +698,20 @@ void TurnPID(float target, float settle_time_msec, float kI_start_at_error_value
 		pros::lcd::print(6,"timeout active?: %d", timer < timeout_msec);
 		pros::lcd::print(7,"settle active?: %d", settle_timer < settle_time_msec);
 
-
-		pros::delay(20);
+		return(output);
 	}
 
-	left_drivetrain.move_voltage(0); // output needs to be -12000 to 12000 milivolts
-	right_drivetrain.move_voltage(0);
+	if(settle_timer > settle_time_msec) //successfully finished movement
+	{
+		return(12001);
+	} else if (timer > timeout_msec) //timed out
+	{
+		return(12002);
+	} else //if this is called, something werid happened and you need to check it out
+	{
+		return(12003);
+		pros::lcd::print(0,"FORWARD_PID FAILURE");
+	}
 }
 
 
