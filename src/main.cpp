@@ -373,7 +373,7 @@ void autonomous()
 	} else if (auton_picker = 3) //Clear Match Loads
 	{
 		wings.set_value(HIGH);
-		pros::delay(1000);
+		pros::delay(1000); // 1 second
 
 		// turnPID(180);
 		pros::delay(1000);
