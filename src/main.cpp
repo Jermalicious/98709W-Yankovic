@@ -494,7 +494,7 @@ void autonomous()
 		intake = 0;
 		turnTo(60);		//turn toward target
 		drive_by_voltage(-4500,500);
-		pros::delay(3000);	//pause for chance to launch
+		pros::delay(35000);	//pause for chance to launch
 		flywheel_motor.move_voltage(0);	//turn off flywheel
 
 	//drive to first push
