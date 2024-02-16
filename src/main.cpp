@@ -39,23 +39,23 @@ pros::Motor_Group intake({left_intake, right_intake});										// both intake m
 //returns 12001 when successfully finished movement
 //returns 12002 when movement times out
 //returns 12003 if unexpected failure
-void driveTo(float target_x, float target_y, float settle_time_msec = 600, float kI_start_at_angle = 16, float kI_start_at_distance = 7, int timeout_msec = -1);
-void turnTo(float target, float settle_time_msec = 500, float kI_start_at_error_value = 16, int timeout_msec = -1);
+void driveTo(float target_x, float target_y, float settle_time_msec = 550, float settle_distance = 2.2, float kI_start_at_angle = 16, float kI_start_at_distance = 7, int timeout_msec = -1);
+void turnTo(float target, float settle_time_msec = 400, float kI_start_at_error_value = 16, int timeout_msec = -1);
 
 double reduce_angle_negative_180_to_180(double angle);
 
 // declare global variables
-const double forward_kP = 650;
-const double forward_kI = 0;
-const double forward_kD = 0;
+const double forward_kP = 650;	//650
+const double forward_kI = 0;	//0
+const double forward_kD = 250;	//0 //450 new
 
-const double turn_kP = 200;
-const double turn_kI = 16;
-const double turn_kD = 600;
+const double turn_kP = 200;	//200
+const double turn_kI = 16;	//16
+const double turn_kD = 750;	//750
 
-const double driveTo_turn_kP = 100; //200
+const double driveTo_turn_kP = 250; //200
 const double driveTo_turn_kI = 0;   //16
-const double driveTo_turn_kD = 800; //600
+const double driveTo_turn_kD = 300; //600
 
 float starting_angle = 0; //angle of robot at start of auton, matters if we start at an odd angle but want to give field-relative instructions
 float starting_x;
@@ -187,7 +187,7 @@ void odometry()
 		/////////////////////////////////////////////////////////////
 
 		// Absolute Position //////////////////////////////////////////////////////////////
-			ΔS = (float)(tracking_wheel_horizontal.get_position() - prev_tracking_wheel_horizontal)/ 100 / 360 * (2.75 * 3.14159);
+			ΔS = (float)(tracking_wheel_horizontal.get_position() - prev_tracking_wheel_horizontal)/ 100 / 360 * (2.75 * 3.14159);   //WE HAVE A PROBLEM TRACKING X SOME
 			ΔR = (float)(tracking_wheel_vertical.get_position() - prev_tracking_wheel_vertical)/ 100 / 360 * (2.75 * 3.14159);
 
 			prev_tracking_wheel_horizontal = tracking_wheel_horizontal.get_position();
@@ -245,12 +245,12 @@ void odometry()
 		
 
 		odom_counter++;
-		pros::delay(20);
+		pros::delay(15);
 	}
 }
 
 
-void driveTo(float target_x, float target_y, float settle_time_msec, float kI_start_at_angle, float kI_start_at_distance, int timeout_msec)
+void driveTo(float target_x, float target_y, float settle_time_msec, float settle_distance, float kI_start_at_angle, float kI_start_at_distance, int timeout_msec)
 {
 	//Odom variables
 	float relative_x = target_x - robot_positionx; //inches
@@ -266,7 +266,6 @@ void driveTo(float target_x, float target_y, float settle_time_msec, float kI_st
 	float derivative;
 	int output_distance;
 	int output_angle;
-	float settle_distance = 2.2; // change this value to change what error the PID considers "settled"
 	int timer = 0;
 	int settle_timer = 0;
 
@@ -297,7 +296,7 @@ void driveTo(float target_x, float target_y, float settle_time_msec, float kI_st
 			}
 			derivative = prev_error_distance - error_distance;
 			prev_error_distance = error_distance;
-			output_distance = forward_kP * error_distance + forward_kI * integral + forward_kD * derivative;
+			output_distance = forward_kP * error_distance + forward_kI * integral - forward_kD * derivative;
 		////////////////////////////////////////////////////////////////////////////
 		// Angle PID /////////////////////////////////////////////////////////////////////////////
 			if (error_angle < kI_start_at_angle)
@@ -306,7 +305,7 @@ void driveTo(float target_x, float target_y, float settle_time_msec, float kI_st
 			}
 			derivative = prev_error_angle - error_angle;
 			prev_error_angle = error_angle;
-			output_angle = driveTo_turn_kP * error_angle + driveTo_turn_kI * integral + driveTo_turn_kD * derivative;
+			output_angle = driveTo_turn_kP * error_angle + driveTo_turn_kI * integral - driveTo_turn_kD * derivative;
 		////////////////////////////////////////////////////////////////////////////
 			////reduce output_distance if error_angle is too large? Coach mentioned using cos(error_angle) or something like that
 			heading_correction_factor = cos(error_angle * 3.1415 / 180);
@@ -459,13 +458,16 @@ void autonomous()
 		// driveTo(0,24);
 		// goTo(0,24);
 		// goTo(24,24);
-		// driveTo(72,24);
-		// driveTo(72,72);
-		// driveTo(96,24);
+		driveTo(72,24);
+		driveTo(72,72);
+		driveTo(96,24);
+		driveTo(0,0);
+		// turnTo(180);
+		// turnTo(45);
+		// turnTo(-70);
+		// turnTo(0);
+
 		// driveTo(0,0);
-		turnTo(180);
-		turnTo(45);
-		turnTo(-70);
 		turnTo(0);
 
 		// ForwardPID(8); // push ball
@@ -480,27 +482,27 @@ void autonomous()
 		starting_y = 0;
 
 	//push preloads under the goal
-		turnTo(-45);
-		driveTo(4,30); 	//move to goal
+		turnTo(-40);
+		driveTo(4,28); 	//move to goal
 		intake = -95;
 		turnTo(0);		//orient toward goal
 		drive_by_voltage(11000,750);	//push under the goal
-		intake = 0;
 
 	//drive to launch zone
 		flywheel_motor.move_voltage(11000);	//spin up the flywheel
-		driveTo(6,24);	//go to the LZ   //FIX
+		driveTo(6,24);	//go to the LZ
+		intake = 0;
 		turnTo(60);		//turn toward target
 		drive_by_voltage(-4500,750);
 		wings.set_value(HIGH);	//make 100% sure that we are touching the loding zone
-		pros::delay(2000);	//pause for chance to launch
+		pros::delay(3000);	//pause for chance to launch
 		flywheel_motor.move_voltage(0);	//turn off flywheel
 		wings.set_value(LOW);	//close wings
 
 	//drive to first push
-		driveTo(24,6,20);	//drive to entrance of the hallway
-		driveTo(98,6,100);	//drive to other side through the hallway
-		driveTo(124,30);
+		driveTo(24,6,20,5);	//drive to entrance of the hallway
+		driveTo(96,6,20,5);	//drive to other side through the hallway
+		driveTo(120,30);
 		turnTo(0);
 		
 	//push triballs under goal
@@ -511,7 +513,7 @@ void autonomous()
 		drive_by_voltage(-9000,500);
 
 	//drive to second push goal
-		driveTo(96,30,20);
+		driveTo(96,30,20,5);
 		driveTo(73,68);	//drive to a point in front of the goal
 		turnTo(90);	//turn toward goal
 
@@ -520,7 +522,7 @@ void autonomous()
 		pros::delay(500);	//wait for wings to deploy
 		drive_by_voltage(11000,750);	//push under goal
 		wings.set_value(LOW);
-		drive_by_voltage(-9000,500);	//get out of the way, make sure we're not contacting any
+		drive_by_voltage(-9000,500);	//get out of the way, make sure we're not contacting any triballs
 
 	} else if (auton_picker = 2) //shove ball under
 	{	
@@ -875,7 +877,7 @@ int turnPID(float target, bool new_movement, float settle_time_msec, float kI_st
 void turnTo(float target, float settle_time_msec, float kI_start_at_error_value, int timeout_msec)
 {
 	pros::lcd::print(0,"entered turnPID");
-	float error = target - (inertial_sensor.get_rotation() + starting_angle); // target is degrees we want to be at
+	float error = reduce_angle_negative_180_to_180(target - (inertial_sensor.get_rotation() + starting_angle)); // target is degrees we want to be at
 	float prev_error;
 	float integral;
 	float derivative;
@@ -891,7 +893,7 @@ void turnTo(float target, float settle_time_msec, float kI_start_at_error_value,
 	while (timer < timeout_msec && settle_timer < settle_time_msec)
 	{
 		sensor = inertial_sensor.get_rotation();
-		error = target - (sensor + starting_angle);
+		error = reduce_angle_negative_180_to_180(target - (sensor + starting_angle));
 		// pros::lcd::print(3,"%f",reduce_angle_negative_180_to_180(370));
 		if (abs(error) < kI_start_at_error_value)
 		{
@@ -905,9 +907,9 @@ void turnTo(float target, float settle_time_msec, float kI_start_at_error_value,
 		prev_error = error;
 		output = turn_kP * error + turn_kI * integral - turn_kD * derivative;
 		// cap output at 11500 milivolts (11 volts)
-		if (output > 11500)
+		if (output > 11000)
 		{
-			output = 11500;
+			output = 11000;
 		}
 		// output to drivetrain
 		left_drivetrain.move_voltage(output); // output needs to be -12000 to 12000 milivolts
@@ -930,7 +932,7 @@ void turnTo(float target, float settle_time_msec, float kI_start_at_error_value,
 		pros::lcd::print(7,"settle active?: %d", settle_timer < settle_time_msec);
 		pros::delay(20);
 	}
-	left_drivetrain.move_voltage(0); // output needs to be -12000 to 12000 milivolts
+	left_drivetrain.move_voltage(0);
 	right_drivetrain.move_voltage(0);
 }
 
