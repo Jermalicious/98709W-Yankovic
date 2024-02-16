@@ -39,7 +39,7 @@ pros::Motor_Group intake({left_intake, right_intake});										// both intake m
 //returns 12001 when successfully finished movement
 //returns 12002 when movement times out
 //returns 12003 if unexpected failure
-void driveTo(float target_x, float target_y, float settle_time_msec = 550, float settle_distance = 2.2, float kI_start_at_angle = 16, float kI_start_at_distance = 7, int timeout_msec = -1);
+void driveTo(float target_x, float target_y, float settle_time_msec = 450, float settle_distance = 2.2, float kI_start_at_angle = 16, float kI_start_at_distance = 7, int timeout_msec = -1);
 void turnTo(float target, float settle_time_msec = 400, float kI_start_at_error_value = 16, int timeout_msec = -1);
 
 double reduce_angle_negative_180_to_180(double angle);
@@ -275,7 +275,7 @@ void driveTo(float target_x, float target_y, float settle_time_msec, float settl
 
 	if (timeout_msec = -1) // this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
 	{
-		timeout_msec = abs(error_angle) * 40 + abs(error_distance) * 40 + 1000; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
+		timeout_msec = abs(error_angle) * 20 + abs(error_distance) * 40 + 1000; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
 	}
 
 	while(timer < timeout_msec && settle_timer < settle_time_msec)
@@ -486,40 +486,39 @@ void autonomous()
 		driveTo(4,28); 	//move to goal
 		intake = -95;
 		turnTo(0);		//orient toward goal
-		drive_by_voltage(11000,750);	//push under the goal
+		drive_by_voltage(11000,700);	//push under the goal
 
 	//drive to launch zone
 		flywheel_motor.move_voltage(11000);	//spin up the flywheel
 		driveTo(6,24);	//go to the LZ
 		intake = 0;
 		turnTo(60);		//turn toward target
-		drive_by_voltage(-4500,750);
-		wings.set_value(HIGH);	//make 100% sure that we are touching the loding zone
+		drive_by_voltage(-4500,500);
 		pros::delay(3000);	//pause for chance to launch
 		flywheel_motor.move_voltage(0);	//turn off flywheel
-		wings.set_value(LOW);	//close wings
 
 	//drive to first push
-		driveTo(24,6,20,5);	//drive to entrance of the hallway
-		driveTo(96,6,20,5);	//drive to other side through the hallway
-		driveTo(120,30);
+		driveTo(24,8,20,5);	//drive to entrance of the hallway
+		driveTo(96,9,20,5);	//drive to other side through the hallway
+		driveTo(116,30);
 		turnTo(0);
 		
 	//push triballs under goal
 		wings.set_value(HIGH);	//extend wings for the push
-		pros::delay(500);	//wait for wings to deploy
+		pros::delay(400);	//wait for wings to deploy
 		drive_by_voltage(11000,750);	//push under goal
 		wings.set_value(LOW);
 		drive_by_voltage(-9000,500);
 
 	//drive to second push goal
 		driveTo(96,30,20,5);
+		// driveTo(74,30,20,5); //RISKY SWEEP
 		driveTo(73,68);	//drive to a point in front of the goal
 		turnTo(90);	//turn toward goal
 
 	//push triablls under goal
 		wings.set_value(HIGH);	//extend wings for the push
-		pros::delay(500);	//wait for wings to deploy
+		pros::delay(400);	//wait for wings to deploy
 		drive_by_voltage(11000,750);	//push under goal
 		wings.set_value(LOW);
 		drive_by_voltage(-9000,500);	//get out of the way, make sure we're not contacting any triballs
