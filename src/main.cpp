@@ -390,6 +390,17 @@ void drive_by_voltage(int millivolts, float milliseconds)
 	right_drivetrain.brake();
 }
 
+void drive_by_voltage(int millivolts_left, int millivolts_right, float milliseconds)
+{
+	left_drivetrain.move_voltage(millivolts_left);
+	right_drivetrain.move_voltage(millivolts_right);
+
+	pros::delay(milliseconds);
+
+	left_drivetrain.brake();
+	right_drivetrain.brake();
+}
+
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -453,23 +464,33 @@ void autonomous()
 		pros::delay(20);
 	}
 
-	if(auton_picker == 0) //Defense Winpoint
+	if(auton_picker == 0) //Under Winpoint
 	{
-	//Clear matchload
-		intake = 95;
-		drive_by_voltage(2000,1000);
+		starting_angle = -135;
+		starting_x = 24;
+		starting_y = 12;
 
-	//Go to goal
-		turnTo(30);
-		driveTo(116,30);
-		turnTo(0);
-	
-	//push alliance triball and matchload under goal
-		wings.set_value(HIGH);	//extend wings for the push
-		pros::delay(400);	//wait for wings to deploy
-		drive_by_voltage(11000,700);	//push under goal
-		wings.set_value(LOW);
+	//Clear matchload
+
+		intake = 95;
+		drive_by_voltage(4000,6000,1500);
+		turnTo(90);
+		intake = -95;
+		pros::delay(750);
+
+		intake = 0;
+		turnTo(-40);
+		intake = 95;
+		driveTo(8,24,450,4);
+		driveTo(4,30,400,4); 	//move to goal
+		turnTo(0);		//orient toward goal
+		intake = -95;
+		drive_by_voltage(11000,700);	//push under the goal
 		drive_by_voltage(-7000,500);
+		intake = 0;
+
+		driveTo(34,10,20,5);
+		driveTo(54.5,11,400,3);
 
 	//Touch elevation bar
 
@@ -487,18 +508,18 @@ void autonomous()
 		drive_by_voltage(11000,700);	//push under the goal
 
 	//drive to launch zone
-		flywheel_motor.move_voltage(11000);	//spin up the flywheel
-		driveTo(6,24);	//go to the LZ
+		flywheel_motor.move_voltage(10650);	//spin up the flywheel
+		driveTo(6,25);	//go to the LZ
 		intake = 0;
 		turnTo(60);		//turn toward target
 		drive_by_voltage(-4500,500);
-		pros::delay(38000);	//pause for chance to launch
+		pros::delay(37500);	//pause for chance to launch
 		flywheel_motor.move_voltage(0);	//turn off flywheel
 
 	//drive to first push
-		driveTo(24,8,20,5);	//drive to entrance of the hallway
-		driveTo(96,9,20,5);	//drive to other side through the hallway
-		driveTo(116,30);
+		driveTo(24,9,20,5);	//drive to entrance of the hallway
+		driveTo(96,10,20,5);	//drive to other side through the hallway
+		driveTo(116,31);
 		turnTo(0);
 		
 	//push triballs under goal
@@ -509,7 +530,7 @@ void autonomous()
 		drive_by_voltage(-7000,500);
 
 	//drive to second push goal
-		driveTo(95,30,20,5);
+		driveTo(95,35,20,5);
 		// driveTo(74,30,20,5); //RISKY SWEEP
 		driveTo(73,68);	//drive to a point in front of the goal
 		turnTo(90);	//turn toward goal
@@ -524,8 +545,8 @@ void autonomous()
 	} else if (auton_picker = 2) //shove ball under
 	{	
 
-		// ForwardPID(-30);
-		// ForwardPID(6);
+		drive_by_voltage(-8000,900);
+		drive_by_voltage(5000,500);
 
 	} else if (auton_picker = 3) //Clear Match Loads
 	{
@@ -646,7 +667,7 @@ void opcontrol()
 		{ // function to toggle flywheel forward when R2 is pressed
 			if (!toggle_flywheel)
 			{
-				flywheel_motor.move_voltage(11000);
+				flywheel_motor.move_voltage(10650);
 				toggle_flywheel = 1;
 			}
 			else if (toggle_flywheel)
