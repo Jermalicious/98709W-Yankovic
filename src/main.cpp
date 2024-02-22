@@ -142,15 +142,15 @@ void odometry()
 	float y_offset = -2.5; //initialize //"SR" in odom paper, offset from vertical tracking wheel to tracking center in inches
 	float x_offset = 0.25; //"SS" in odom paper, offset from horizontal tracking wheel to tracking center in inches. It's negative because left is -x direction 
 
-	float Rr = 0; //at the "last reset" in this case the beginning
-	float Sr = 0; //at the "last reset" in this case the beginning
+	float Rr = 0;  //at the "last reset" in this case the beginning
+	float Sr = 0;  //at the "last reset" in this case the beginning
 	float θr = 0;  //at the "last reset" in this case the beginning
 
 	float θm; //average orientation used for converting to field coordinates
 
 	float d0x = 0; //previous robot position
 	float d0y = 0; //previous robot position
-	float θ0; //previous robot angle
+	float θ0;      //previous robot angle
 	float prev_tracking_wheel_horizontal;
 	float prev_tracking_wheel_vertical;
 
@@ -182,7 +182,7 @@ void odometry()
 
 			θ1 = absolute_robot_angle / 180 * 3.14159; //radians
 
-			Δθ = (θ1 - θ0); //radians
+			Δθ = (θ1 - θ0);   //radians
 			θm = θ0 + (Δθ/2); //radians
 		/////////////////////////////////////////////////////////////
 
@@ -214,7 +214,7 @@ void odometry()
 			}
 ///////////////////Probably OK to here
 
-			Δdl_polar_r = sqrt(pow(Δdlx,2) + pow(Δdly,2)); //this gets rid of negatives, but that's because you can't HAVE negatices as a distance
+			Δdl_polar_r = sqrt(pow(Δdlx,2) + pow(Δdly,2)); //this gets rid of negatives, but that's because you can't HAVE negatives as a distance
 
 
 			Δdl_polar_θ = atan2f(Δdly, Δdlx); //polar angle to be rotated by -θm = global polar angle CHECK here
@@ -526,8 +526,7 @@ void autonomous()
 	} else if (auton_picker = 2) //shove ball under
 	{	
 
-		// ForwardPID(-30);
-		// ForwardPID(6);
+
 
 	} else if (auton_picker = 3) //Clear Match Loads
 	{
@@ -540,51 +539,6 @@ void autonomous()
 		wings.set_value(LOW);
 	}
 	
-	
-
-	// ForwardPID(24);
-	// ForwardPID(-24);
-
-	// left_drivetrain = -50; //turn left (front of robot = forward)
-	// right_drivetrain = 50;
-	// pros::delay (200); // wait .2 sec
-	// left_drivetrain = 0;
-	// right_drivetrain = 0;
-
-	// TurnPID(180);
-	// TurnPID(45);
-	// ForwardPID(24);
-	// TurnPID(0);
-
-
-// 	//Crude Pre-Match Auton
-// intake = 95;
-// left_drivetrain = 95; //intake ball under bar
-// right_drivetrain = 95;
-// pros::delay (100); //1000 msec (1 sec)
-
-// intake = 0; 
-// left_drivetrain = -95;//back up into corner ground ball
-// right_drivetrain = -95;
-// pros::delay (1000); // wait 1 sec
-
-// left_drivetrain = 50; //turn left (front of robot = forward)
-// right_drivetrain = -50;
-// pros::delay (500); // wait .5 sec
-
-// left_drivetrain = -95;//back up into wall
-// right_drivetrain = -95;
-// pros::delay (1000);// wait 1 sec
-
-// left_drivetrain = 50; //turn left (front of robot = forward)
-// right_drivetrain = -50;
-// pros::delay (500); // wait .5 sec
-
-// left_drivetrain = -95;//back up into wall
-// right_drivetrain = -95; 
-
-// left_drivetrain = 0; //Stop moving
-// right_drivetrain = 0;
 
 }
 
