@@ -390,6 +390,17 @@ void drive_by_voltage(int millivolts, float milliseconds)
 	right_drivetrain.brake();
 }
 
+void drive_by_voltage(int millivolts_left, int millivolts_right, float milliseconds)
+{
+	left_drivetrain.move_voltage(millivolts_left);
+	right_drivetrain.move_voltage(millivolts_right);
+
+	pros::delay(milliseconds);
+
+	left_drivetrain.brake();
+	right_drivetrain.brake();
+}
+
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -402,7 +413,7 @@ void initialize()
 	pros::lcd::initialize();
 	// pros::lcd::set_text(1, "Hello PROS User!");
 	pros::lcd::set_text(7, "Shove Under  Skills     Clear ML");
-	pros::lcd::set_text(6, "go forward then outtake");
+	pros::lcd::set_text(6, "Defense-Side Winpoint");
 
 	pros::lcd::register_btn0_cb(on_left_button);
 	pros::lcd::register_btn1_cb(on_center_button);
@@ -453,27 +464,35 @@ void autonomous()
 		pros::delay(20);
 	}
 
-	if(auton_picker == 0) //go forward and outtake
+	if(auton_picker == 0) //Under Winpoint
 	{
-		// driveTo(0,24);
-		// goTo(0,24);
-		// goTo(24,24);
-		driveTo(72,24);
-		driveTo(72,72);
-		driveTo(96,24);
-		driveTo(0,0);
-		// turnTo(180);
-		// turnTo(45);
-		// turnTo(-70);
-		// turnTo(0);
+		starting_angle = -135;
+		starting_x = 24;
+		starting_y = 12;
 
-		// driveTo(0,0);
-		turnTo(0);
+	//Clear matchload
 
-		// ForwardPID(8); // push ball
-		// intake = -95;  //outtake preload
-		// pros::delay(1000);
-		// intake.brake();
+		intake = 95;
+		drive_by_voltage(4000,6000,1500);
+		turnTo(90);
+		intake = -95;
+		pros::delay(750);
+
+		intake = 0;
+		turnTo(-40);
+		intake = 95;
+		driveTo(8,24,450,4);
+		driveTo(4,30,400,4); 	//move to goal
+		turnTo(0);		//orient toward goal
+		intake = -95;
+		drive_by_voltage(11000,700);	//push under the goal
+		drive_by_voltage(-7000,500);
+		intake = 0;
+
+		driveTo(34,10,20,5);
+		driveTo(54.5,11,400,3);
+
+	//Touch elevation bar
 
 	} else if (auton_picker == 1) //skills
 	{
@@ -489,18 +508,18 @@ void autonomous()
 		drive_by_voltage(11000,700);	//push under the goal
 
 	//drive to launch zone
-		flywheel_motor.move_voltage(11000);	//spin up the flywheel
-		driveTo(6,24);	//go to the LZ
+		flywheel_motor.move_voltage(10650);	//spin up the flywheel
+		driveTo(6,25);	//go to the LZ
 		intake = 0;
 		turnTo(60);		//turn toward target
 		drive_by_voltage(-4500,500);
-		pros::delay(35000);	//pause for chance to launch
+		pros::delay(37500);	//pause for chance to launch
 		flywheel_motor.move_voltage(0);	//turn off flywheel
 
 	//drive to first push
-		driveTo(24,8,20,5);	//drive to entrance of the hallway
-		driveTo(96,9,20,5);	//drive to other side through the hallway
-		driveTo(116,30);
+		driveTo(24,9,20,5);	//drive to entrance of the hallway
+		driveTo(96,10,20,5);	//drive to other side through the hallway
+		driveTo(116,31);
 		turnTo(0);
 		
 	//push triballs under goal
@@ -508,10 +527,10 @@ void autonomous()
 		pros::delay(400);	//wait for wings to deploy
 		drive_by_voltage(11000,750);	//push under goal
 		wings.set_value(LOW);
-		drive_by_voltage(-9000,500);
+		drive_by_voltage(-7000,500);
 
 	//drive to second push goal
-		driveTo(96,30,20,5);
+		driveTo(95,35,20,5);
 		// driveTo(74,30,20,5); //RISKY SWEEP
 		driveTo(73,68);	//drive to a point in front of the goal
 		turnTo(90);	//turn toward goal
@@ -526,17 +545,12 @@ void autonomous()
 	} else if (auton_picker = 2) //shove ball under
 	{	
 
-
+		drive_by_voltage(-8000,900);
+		drive_by_voltage(5000,500);
 
 	} else if (auton_picker = 3) //Clear Match Loads
 	{
-		wings.set_value(HIGH);
-		pros::delay(1000); // 1 second
 
-		// turnPID(180);
-		pros::delay(1000);
-
-		wings.set_value(LOW);
 	}
 	
 
@@ -608,7 +622,7 @@ void opcontrol()
 		{ // function to toggle flywheel forward when R2 is pressed
 			if (!toggle_flywheel)
 			{
-				flywheel_motor.move_voltage(11000);
+				flywheel_motor.move_voltage(10650);
 				toggle_flywheel = 1;
 			}
 			else if (toggle_flywheel)
@@ -650,186 +664,9 @@ void opcontrol()
 	}
 }
 
-int forwardPID(float error, bool new_movement, float settle_time_msec, float kI_start_at_error_value, int timeout_msec) //FIX HOW TIMEOUT IS CALCULATED!
-{
-
-	static float prev_error = 0;
-	static float integral = 0;
-	static int timer = 0;
-	static int settle_timer = 0;
-
-	if (new_movement) 	//since static variables stick around between function calls, we need to reset these values...
-	{					//...when we start a new movement so it doesn't "remember" the previous movement
-		prev_error = 0;
-		integral = 0;
-		timer = 0;
-		settle_timer = 0;
-	}
-
-	int sensor = tracking_wheel_vertical.get_position();
-
-	float derivative;
-	int output = 0;
-
-	float settle_distance = 2; // change this value to change what error the PID considers "settled"
-
-
-
-
-	if (timeout_msec == -1) // this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
-	{
-		timeout_msec = abs(error) * 30 + 5000; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
-	}
-
-	if (timer <= timeout_msec && settle_timer <= settle_time_msec)
-	{
-		// pros::lcd::print(2,"tracking wheel: %d",sensor);
-		// pros::lcd::print(3,"error: %f",error);
-		// pros::lcd::print(4,"output: %f",forward_kP*(error + forward_kI*integral + forward_kD*derivative));
-		// pros::lcd::print(5,"output: %d",output);
-
-
-		if (error < kI_start_at_error_value)
-		{
-			integral += error;
-		}
-
-		derivative = prev_error - error;
-
-		prev_error = error;
-
-		output = forward_kP * error + forward_kI * integral - forward_kD * derivative;
-
-		// cap output at 11500 milivolts (11.5 volts)
-		if (output > 11500)
-		{
-			output = 11500;
-		}
-
-		if (abs(error) < settle_distance) // absolute value so it never goes negative
-		{
-			settle_timer += 20;
-		}
-		else
-		{
-			settle_timer = 0;
-		}
-
-		timer += 20;
-
-		return(output);
-	}
-
-	if(settle_timer > settle_time_msec) //successfully finished movement
-	{
-		return(12001);
-	} else if (timer > timeout_msec) //timed out
-	{
-		return(12002);
-	} else //if this is called, something werid happened and you need to check it out
-	{
-		return(12003);
-		pros::lcd::print(0,"FORWARD_PID FAILURE");
-	}
-}
-
-int turnPID(float target, bool new_movement, float settle_time_msec, float kI_start_at_error_value, int timeout_msec)
-{
-	pros::lcd::print(0,"entered turnPID");
-
-	static float prev_error = 0;
-	static float integral = 0;
-	static int timer = 0;
-	static int settle_timer = 0;
-
-	if (new_movement) 	//since static variables stick around between function calls, we need to reset these values...
-	{					//...when we start a new movement so it doesn't "remember" the previous movement
-		prev_error = 0;
-		integral = 0;
-		timer = 0;
-		settle_timer = 0;
-	}
-
-	float error = target - (inertial_sensor.get_rotation()); // target is degrees we want to be at
-	float derivative;
-	float sensor;
-	int output;
-
-	float settle_distance = 3; // change this value to change what error the PID considers "settled"
-
-	if (timeout_msec == -1) // this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
-	{
-		timeout_msec = abs(error) * 30 + 5000; // sets the timeout msecs to 30 times the error plus a baseline 500 ms
-	}
-
-	if (timer < timeout_msec && settle_timer < settle_time_msec)
-	{
-		sensor = inertial_sensor.get_rotation();
-
-		error = target - (sensor + starting_angle);
-
-		// pros::lcd::print(3,"%f",reduce_angle_negative_180_to_180(370));
-
-		if (abs(error) < kI_start_at_error_value)
-		{
-			integral += error;
-		}
-		else
-		{
-			integral = 0;
-		}
-
-		derivative = prev_error - error;
-
-		prev_error = error;
-
-		output = turn_kP * error + turn_kI * integral - turn_kD * derivative;
-
-		// cap output at 11500 milivolts (11 volts)
-		if (output > 11500)
-		{
-			output = 11500;
-		}
-
-		pros::lcd::print(4,"settle_timer: %d", settle_timer);
-		pros::lcd::print(2,"integral: %f", integral);
-		pros::lcd::print(3,"output: %d", output);
-
-		if (abs(error) < settle_distance) // absolute value so it never goes negative
-		{
-			settle_timer += 20;
-		}
-		else
-		{
-			settle_timer = 0;
-		}
-
-		timer += 20;
-
-		pros::lcd::print(1,"error_angle: %f", error);
-		pros::lcd::print(5,"loop?: %d", timer < timeout_msec && settle_timer < settle_time_msec);
-		pros::lcd::print(6,"timeout active?: %d", timer < timeout_msec);
-		pros::lcd::print(7,"settle active?: %d", settle_timer < settle_time_msec);
-
-		return(output);
-	}
-
-	if(settle_timer > settle_time_msec) //successfully finished movement
-	{
-		return(12001);
-	} else if (timer > timeout_msec) //timed out
-	{
-		return(12002);
-	} else //if this is called, something werid happened and you need to check it out
-	{
-		return(12003);
-		pros::lcd::print(0,"FORWARD_PID FAILURE");
-	}
-}
-
 void turnTo(float target, float settle_time_msec, float kI_start_at_error_value, int timeout_msec)
 {
-	pros::lcd::print(0,"entered turnPID");
+	pros::lcd::print(0,"entered turnTo");
 	float error = reduce_angle_negative_180_to_180(target - (inertial_sensor.get_rotation() + starting_angle)); // target is degrees we want to be at
 	float prev_error;
 	float integral;
