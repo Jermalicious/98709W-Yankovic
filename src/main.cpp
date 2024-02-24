@@ -12,12 +12,12 @@ pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 // define miscellaneous motors, pneumatics, and tracking wheels
 pros::Motor flywheel_motor(15, false);		// Flywheel motor
-pros::Motor left_intake(19, true);			// Left intake motor
-pros::Motor right_intake(14, false);		// Right intake motor
+pros::Motor left_cata(6, false);			// Left cata motor
+pros::Motor right_cata(20, true);		// Right cata motor
 pros::ADIDigitalOut wings(1, LOW);			// Pneumatics to extend the pusher wings
 pros::Rotation tracking_wheel_horizontal(1, false);
 pros::Rotation tracking_wheel_vertical(5, false);
-pros::Imu inertial_sensor(20);
+pros::Imu inertial_sensor(19);
 pros::Rotation flywheel_sensor(7, true);
 
 // define drivetrain motors
@@ -31,7 +31,7 @@ pros::Motor right_front_drive(8, false);
 // define drivetrain motor groups
 pros::Motor_Group left_drivetrain({left_top_drive, left_back_drive, left_front_drive});		// the three motors for the left side of the drivetrain
 pros::Motor_Group right_drivetrain({right_top_drive, right_back_drive, right_front_drive}); // the three motors for the right side of the drivetrain
-pros::Motor_Group intake({left_intake, right_intake});										// both intake motors
+pros::Motor_Group Cata({left_cata, right_cata});										// both cata motors
 
 // declare functions so that we can define them at the bottom of this page
 
@@ -472,22 +472,22 @@ void autonomous()
 
 	//Clear matchload
 
-		intake = 95;
+
 		drive_by_voltage(4000,6000,1500);
 		turnTo(90);
-		intake = -95;
+	
 		pros::delay(750);
 
-		intake = 0;
+
 		turnTo(-40);
-		intake = 95;
+
 		driveTo(8,24,450,4);
 		driveTo(4,30,400,4); 	//move to goal
 		turnTo(0);		//orient toward goal
-		intake = -95;
+
 		drive_by_voltage(11000,700);	//push under the goal
 		drive_by_voltage(-7000,500);
-		intake = 0;
+
 
 		driveTo(34,10,20,5);
 		driveTo(54.5,11,400,3);
@@ -503,14 +503,14 @@ void autonomous()
 	//push preloads under the goal
 		turnTo(-40);
 		driveTo(4,28); 	//move to goal
-		intake = -95;
+
 		turnTo(0);		//orient toward goal
 		drive_by_voltage(11000,700);	//push under the goal
 
 	//drive to launch zone
 		flywheel_motor.move_voltage(10650);	//spin up the flywheel
 		driveTo(6,25);	//go to the LZ
-		intake = 0;
+
 		turnTo(60);		//turn toward target
 		drive_by_voltage(-4500,500);
 		pros::delay(37500);	//pause for chance to launch
@@ -593,18 +593,15 @@ void opcontrol()
 		//                   (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
 		//                   (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
 
-		// intake controller
+		// cata controller
 		if (controller.get_digital(DIGITAL_R1)) // forward
 		{
-			intake = 95;
+			Cata = 95;
 		}
-		else if (controller.get_digital(DIGITAL_L1)) // reverse
-		{
-			intake = -95;
-		}
+		
 		else
 		{
-			intake.brake();
+			Cata.brake();
 		}
 
 		// wings controller
