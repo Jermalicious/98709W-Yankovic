@@ -12,8 +12,8 @@ pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 // define miscellaneous motors, pneumatics, and tracking wheels
 pros::Motor flywheel_motor(15, false);		// Flywheel motor
-pros::Motor left_cata(6, false);			// Left cata motor
-pros::Motor right_cata(20, true);		// Right cata motor
+pros::Motor left_cata(5, false);			// Left cata motor
+pros::Motor right_cata(20, true);			// Right cata motor
 pros::ADIDigitalOut wings(1, LOW);			// Pneumatics to extend the pusher wings
 pros::Rotation tracking_wheel_horizontal(1, false);
 pros::Rotation tracking_wheel_vertical(5, false);
@@ -596,7 +596,7 @@ void opcontrol()
 		// cata controller
 		if (controller.get_digital(DIGITAL_R1)) // forward
 		{
-			Cata = 95;
+			Cata = 100;
 		}
 		
 		else
