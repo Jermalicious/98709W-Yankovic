@@ -11,14 +11,14 @@ okapi::Rate loopRate;
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 // define miscellaneous motors, pneumatics, and tracking wheels
-pros::Motor flywheel_motor(15, false);		// Flywheel motor
-pros::Motor left_intake(19, true);			// Left intake motor
-pros::Motor right_intake(14, false);		// Right intake motor
+pros::Motor right_catapult(20, true);
+pros::Motor left_catapult(5, false);		// Right intake motor
+
 pros::ADIDigitalOut wings(1, LOW);			// Pneumatics to extend the pusher wings
+
 pros::Rotation tracking_wheel_horizontal(1, false);
 pros::Rotation tracking_wheel_vertical(5, false);
-pros::Imu inertial_sensor(20);
-pros::Rotation flywheel_sensor(7, true);
+pros::Imu inertial_sensor(19);
 
 // define drivetrain motors
 pros::Motor left_top_drive(13, true);
@@ -31,7 +31,7 @@ pros::Motor right_front_drive(8, false);
 // define drivetrain motor groups
 pros::Motor_Group left_drivetrain({left_top_drive, left_back_drive, left_front_drive});		// the three motors for the left side of the drivetrain
 pros::Motor_Group right_drivetrain({right_top_drive, right_back_drive, right_front_drive}); // the three motors for the right side of the drivetrain
-pros::Motor_Group intake({left_intake, right_intake});										// both intake motors
+pros::Motor_Group catapult({left_catapult, right_catapult});
 
 // declare functions so that we can define them at the bottom of this page
 
@@ -61,7 +61,7 @@ float starting_angle = 0; //angle of robot at start of auton, matters if we star
 float starting_x;
 float starting_y;
 
-int toggle_flywheel = 0;
+bool toggle_catapult = false;
 int auton_picker = 0;
 
 float robot_positionx = 0; //robot x position in inches
@@ -472,22 +472,22 @@ void autonomous()
 
 	//Clear matchload
 
-		intake = 95;
+	
 		drive_by_voltage(4000,6000,1500);
 		turnTo(90);
-		intake = -95;
+
 		pros::delay(750);
 
-		intake = 0;
+
 		turnTo(-40);
-		intake = 95;
+
 		driveTo(8,24,450,4);
 		driveTo(4,30,400,4); 	//move to goal
 		turnTo(0);		//orient toward goal
-		intake = -95;
+
 		drive_by_voltage(11000,700);	//push under the goal
 		drive_by_voltage(-7000,500);
-		intake = 0;
+
 
 		driveTo(34,10,20,5);
 		driveTo(54.5,11,400,3);
@@ -497,24 +497,23 @@ void autonomous()
 	} else if (auton_picker == 1) //skills
 	{
 		starting_angle = 0;
-		starting_x = 24;
-		starting_y = 0;
+		starting_x = 0;	//24
+		starting_y = 24;	//0
 
 	//push preloads under the goal
-		turnTo(-40);
-		driveTo(4,28); 	//move to goal
-		intake = -95;
-		turnTo(0);		//orient toward goal
-		drive_by_voltage(11000,700);	//push under the goal
+		// turnTo(-40);
+		// driveTo(4,28); 	//move to goal
+		// intake = -95;
+		// turnTo(0);		//orient toward goal
+		// drive_by_voltage(11000,700);	//push under the goal
 
 	//drive to launch zone
-		flywheel_motor.move_voltage(10650);	//spin up the flywheel
-		driveTo(6,25);	//go to the LZ
-		intake = 0;
+		// flywheel_motor.move_voltage(10650);	//spin up the flywheel
+		// driveTo(6,25);	//go to the LZ
+		// intake = 0;
 		turnTo(60);		//turn toward target
 		drive_by_voltage(-4500,500);
-		pros::delay(37500);	//pause for chance to launch
-		flywheel_motor.move_voltage(0);	//turn off flywheel
+		catapult.move_relative(900 * 46, 140); //900 encoder ticks per revolution, and 46 revolutions
 
 	//drive to first push
 		driveTo(24,9,20,5);	//drive to entrance of the hallway
@@ -531,7 +530,6 @@ void autonomous()
 
 	//drive to second push goal
 		driveTo(95,35,20,5);
-		// driveTo(74,30,20,5); //RISKY SWEEP
 		driveTo(73,68);	//drive to a point in front of the goal
 		turnTo(90);	//turn toward goal
 
@@ -638,20 +636,6 @@ void opcontrol()
 		//                   (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
 		//                   (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
 
-		// intake controller
-		if (controller.get_digital(DIGITAL_R1)) // forward
-		{
-			intake = 95;
-		}
-		else if (controller.get_digital(DIGITAL_L1)) // reverse
-		{
-			intake = -95;
-		}
-		else
-		{
-			intake.brake();
-		}
-
 		// wings controller
 		if (controller.get_digital(DIGITAL_B))
 		{
@@ -662,36 +646,21 @@ void opcontrol()
 			wings.set_value(LOW);
 		}
 
-		// turns flywheel on and off
+		// turns catapult on and off
 		if (controller.get_digital_new_press(DIGITAL_R2))
-		{ // function to toggle flywheel forward when R2 is pressed
-			if (!toggle_flywheel)
+		{ // function to toggle catapult forward when R2 is pressed
+			if (!toggle_catapult)
 			{
-				flywheel_motor.move_voltage(10650);
-				toggle_flywheel = 1;
+				catapult.move_velocity(150);
+				toggle_catapult = true;
 			}
-			else if (toggle_flywheel)
+			else if (toggle_catapult)
 			{
-				flywheel_motor.move_voltage(0);
-				toggle_flywheel = 0;
+				catapult.move_voltage(0);
+				toggle_catapult = false;
 			}
 
 			pros::lcd::print(4,"Forward!");
-		}
-
-		if (controller.get_digital_new_press(DIGITAL_L2))
-		{ // function to toggle flywheel reverse when L2 is pressed
-			if (!toggle_flywheel)
-			{
-				flywheel_motor.move_voltage(-11900);
-				toggle_flywheel = 1;
-			}
-			else if (toggle_flywheel)
-			{
-				flywheel_motor.move_voltage(0);
-				toggle_flywheel = 0;
-			}
-			pros::lcd::print(4,"Reverse!");
 		}
 
 		// Sets drivetrain speed in % (capped at 95%)
