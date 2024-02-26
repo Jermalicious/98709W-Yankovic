@@ -11,14 +11,15 @@ okapi::Rate loopRate;
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 // define miscellaneous motors, pneumatics, and tracking wheels
-pros::Motor right_catapult(20, true);
-pros::Motor left_catapult(5, false);		// Right intake motor
-
+pros::Motor flywheel_motor(15, false);		// Flywheel motor
+pros::Motor left_cata(5, false);			// Left cata motor
+pros::Motor right_cata(20, true);			// Right cata motor
 pros::ADIDigitalOut wings(1, LOW);			// Pneumatics to extend the pusher wings
 
 pros::Rotation tracking_wheel_horizontal(1, false);
 pros::Rotation tracking_wheel_vertical(5, false);
 pros::Imu inertial_sensor(19);
+pros::Rotation flywheel_sensor(7, true);
 
 // define drivetrain motors
 pros::Motor left_top_drive(13, true);
@@ -31,7 +32,7 @@ pros::Motor right_front_drive(8, false);
 // define drivetrain motor groups
 pros::Motor_Group left_drivetrain({left_top_drive, left_back_drive, left_front_drive});		// the three motors for the left side of the drivetrain
 pros::Motor_Group right_drivetrain({right_top_drive, right_back_drive, right_front_drive}); // the three motors for the right side of the drivetrain
-pros::Motor_Group catapult({left_catapult, right_catapult});
+pros::Motor_Group catapult({left_cata, right_cata});
 
 // declare functions so that we can define them at the bottom of this page
 
@@ -142,15 +143,15 @@ void odometry()
 	float y_offset = -2.5; //initialize //"SR" in odom paper, offset from vertical tracking wheel to tracking center in inches
 	float x_offset = 0.25; //"SS" in odom paper, offset from horizontal tracking wheel to tracking center in inches. It's negative because left is -x direction 
 
-	float Rr = 0; //at the "last reset" in this case the beginning
-	float Sr = 0; //at the "last reset" in this case the beginning
+	float Rr = 0;  //at the "last reset" in this case the beginning
+	float Sr = 0;  //at the "last reset" in this case the beginning
 	float θr = 0;  //at the "last reset" in this case the beginning
 
 	float θm; //average orientation used for converting to field coordinates
 
 	float d0x = 0; //previous robot position
 	float d0y = 0; //previous robot position
-	float θ0; //previous robot angle
+	float θ0;      //previous robot angle
 	float prev_tracking_wheel_horizontal;
 	float prev_tracking_wheel_vertical;
 
@@ -182,7 +183,7 @@ void odometry()
 
 			θ1 = absolute_robot_angle / 180 * 3.14159; //radians
 
-			Δθ = (θ1 - θ0); //radians
+			Δθ = (θ1 - θ0);   //radians
 			θm = θ0 + (Δθ/2); //radians
 		/////////////////////////////////////////////////////////////
 
@@ -214,7 +215,7 @@ void odometry()
 			}
 ///////////////////Probably OK to here
 
-			Δdl_polar_r = sqrt(pow(Δdlx,2) + pow(Δdly,2)); //this gets rid of negatives, but that's because you can't HAVE negatices as a distance
+			Δdl_polar_r = sqrt(pow(Δdlx,2) + pow(Δdly,2)); //this gets rid of negatives, but that's because you can't HAVE negatives as a distance
 
 
 			Δdl_polar_θ = atan2f(Δdly, Δdlx); //polar angle to be rotated by -θm = global polar angle CHECK here
@@ -479,14 +480,18 @@ void autonomous()
 		pros::delay(750);
 
 
+
 		turnTo(-40);
+
 
 		driveTo(8,24,450,4);
 		driveTo(4,30,400,4); 	//move to goal
 		turnTo(0);		//orient toward goal
 
+
 		drive_by_voltage(11000,700);	//push under the goal
 		drive_by_voltage(-7000,500);
+
 
 
 		driveTo(34,10,20,5);
@@ -551,51 +556,6 @@ void autonomous()
 
 	}
 	
-	
-
-	// ForwardPID(24);
-	// ForwardPID(-24);
-
-	// left_drivetrain = -50; //turn left (front of robot = forward)
-	// right_drivetrain = 50;
-	// pros::delay (200); // wait .2 sec
-	// left_drivetrain = 0;
-	// right_drivetrain = 0;
-
-	// TurnPID(180);
-	// TurnPID(45);
-	// ForwardPID(24);
-	// TurnPID(0);
-
-
-// 	//Crude Pre-Match Auton
-// intake = 95;
-// left_drivetrain = 95; //intake ball under bar
-// right_drivetrain = 95;
-// pros::delay (100); //1000 msec (1 sec)
-
-// intake = 0; 
-// left_drivetrain = -95;//back up into corner ground ball
-// right_drivetrain = -95;
-// pros::delay (1000); // wait 1 sec
-
-// left_drivetrain = 50; //turn left (front of robot = forward)
-// right_drivetrain = -50;
-// pros::delay (500); // wait .5 sec
-
-// left_drivetrain = -95;//back up into wall
-// right_drivetrain = -95;
-// pros::delay (1000);// wait 1 sec
-
-// left_drivetrain = 50; //turn left (front of robot = forward)
-// right_drivetrain = -50;
-// pros::delay (500); // wait .5 sec
-
-// left_drivetrain = -95;//back up into wall
-// right_drivetrain = -95; 
-
-// left_drivetrain = 0; //Stop moving
-// right_drivetrain = 0;
 
 }
 
