@@ -11,13 +11,12 @@ okapi::Rate loopRate;
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 // define miscellaneous motors, pneumatics, and tracking wheels
-pros::Motor flywheel_motor(15, false);		// Flywheel motor
-pros::Motor left_cata(5, false);			// Left cata motor
-pros::Motor right_cata(20, true);			// Right cata motor
+pros::Motor left_catapult(5, false);			// Left cata motor
+pros::Motor right_catapult(20, true);			// Right cata motor
 pros::ADIDigitalOut wings(1, LOW);			// Pneumatics to extend the pusher wings
 
 pros::Rotation tracking_wheel_horizontal(1, false);
-pros::Rotation tracking_wheel_vertical(5, false);
+pros::Rotation tracking_wheel_vertical(15, false);
 pros::Imu inertial_sensor(19);
 pros::Rotation flywheel_sensor(7, true);
 
@@ -32,7 +31,7 @@ pros::Motor right_front_drive(8, false);
 // define drivetrain motor groups
 pros::Motor_Group left_drivetrain({left_top_drive, left_back_drive, left_front_drive});		// the three motors for the left side of the drivetrain
 pros::Motor_Group right_drivetrain({right_top_drive, right_back_drive, right_front_drive}); // the three motors for the right side of the drivetrain
-pros::Motor_Group catapult({left_cata, right_cata});
+pros::Motor_Group catapult({left_catapult, right_catapult});
 
 // declare functions so that we can define them at the bottom of this page
 
@@ -236,8 +235,9 @@ void odometry()
 		
 		/////////////////////////////////////////////////////////////
 
-		pros::lcd::print(0,"position (x,y): (%f,%f)",robot_positionx,robot_positiony);
-		pros::lcd::print(1,"absolute angle degeres: %f",absolute_robot_angle);
+		pros::lcd::print(0,"position x: %f",robot_positionx);
+		pros::lcd::print(1,"position y: %f",robot_positiony);
+		pros::lcd::print(2,"absolute angle degeres: %f",absolute_robot_angle);
 		// pros::lcd::print(3,"Δd: [%f , %f]", Δdx, Δdy);
 		// pros::lcd::print(4,"Δdl: [%f , %f]", Δdlx, Δdly);
 		// pros::lcd::print(6,"x_track: %d", tracking_wheel_horizontal.get_angle());
@@ -499,7 +499,7 @@ void autonomous()
 
 	//Touch elevation bar
 
-	} else if (auton_picker == 1) //skills
+	} else if (auton_picker == 1) //skillls
 	{
 		starting_angle = 0;
 		starting_x = 0;	//24
@@ -516,9 +516,9 @@ void autonomous()
 		// flywheel_motor.move_voltage(10650);	//spin up the flywheel
 		// driveTo(6,25);	//go to the LZ
 		// intake = 0;
-		turnTo(60);		//turn toward target
-		drive_by_voltage(-4500,500);
-		catapult.move_relative(900 * 46, 140); //900 encoder ticks per revolution, and 46 revolutions
+		turnTo(-120);		//turn toward target
+		// drive_by_voltage(-4500,500);
+		catapult.move_relative(1800 * 4, 190); //1800 encoder ticks per revolution, and 46 revolutions
 
 	//drive to first push
 		driveTo(24,9,20,5);	//drive to entrance of the hallway
@@ -532,6 +532,13 @@ void autonomous()
 		drive_by_voltage(11000,750);	//push under goal
 		wings.set_value(LOW);
 		drive_by_voltage(-7000,500);
+
+	//drive to second push
+		driveTo(83,45);
+
+	//second push
+		turnTo(40);
+
 
 	//drive to second push goal
 		driveTo(95,35,20,5);
@@ -575,6 +582,9 @@ void autonomous()
 
 void opcontrol()
 {
+	starting_x = 0;
+	starting_y = 0;
+
 	float drive_forward;
 	float drive_turn;
 
@@ -611,7 +621,7 @@ void opcontrol()
 		{ // function to toggle catapult forward when R2 is pressed
 			if (!toggle_catapult)
 			{
-				catapult.move_velocity(150);
+				catapult.move_velocity(190);
 				toggle_catapult = true;
 			}
 			else if (toggle_catapult)
