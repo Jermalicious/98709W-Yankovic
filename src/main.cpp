@@ -1,11 +1,11 @@
 #include "main.h"
 #include "classesTesting.h"
-// #include "autonFunctions.h"
-#include "okapi/api.hpp"
+
+
+
 
 // define classes from classesTesting.h
 CustomMath customMath;
-okapi::Rate loopRate;
 
 // define controller
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
@@ -499,11 +499,11 @@ void autonomous()
 
 	//Touch elevation bar
 
-	} else if (auton_picker == 1) //skillls
+	} else if (auton_picker == 1) //skiills
 	{
-		starting_angle = 0;
-		starting_x = 0;	//24
-		starting_y = 24;	//0
+		starting_angle = -135;
+		starting_x = 14;	//24
+		starting_y = 7;	//0
 
 	//push preloads under the goal
 		// turnTo(-40);
@@ -537,20 +537,48 @@ void autonomous()
 		driveTo(83,45);
 
 	//second push
-		turnTo(40);
-
-
-	//drive to second push goal
-		driveTo(95,35,20,5);
-		driveTo(73,68);	//drive to a point in front of the goal
-		turnTo(90);	//turn toward goal
-
-	//push triablls under goal
+		turnTo(60);
 		wings.set_value(HIGH);	//extend wings for the push
 		pros::delay(400);	//wait for wings to deploy
 		drive_by_voltage(11000,750);	//push under goal
 		wings.set_value(LOW);
 		drive_by_voltage(-9000,500);	//get out of the way, make sure we're not contacting any triballs
+
+	//drive to third push
+		driveTo(81,97);
+
+	//thrid push
+		turnTo(160);
+		wings.set_value(HIGH);	//extend wings for the push
+		pros::delay(400);	//wait for wings to deploy
+		drive_by_voltage(11000,750);	//push under goal
+		wings.set_value(LOW);
+		drive_by_voltage(-9000,500);	//get out of the way, make sure we're not contacting any triballs
+
+	//drive to fourth push
+		driveTo(128,116);
+
+	//fourth push
+		turnTo(180);
+		wings.set_value(HIGH);	//extend wings for the push
+		pros::delay(400);		//wait for wings to deploy
+		drive_by_voltage(11000,750);	//push under goal
+		wings.set_value(LOW);
+		drive_by_voltage(-9000,500);	//get out of the way, make sure we're not contacting any triballss
+
+
+
+	//drive to third push
+	// 	driveTo(95,35,20,5);
+	// 	driveTo(73,68);	//drive to a point in front of the goal
+	// 	turnTo(90);	//turn toward goal
+
+	// //push triablls under goal
+	// 	wings.set_value(HIGH);	//extend wings for the push
+	// 	pros::delay(400);	//wait for wings to deploy
+	// 	drive_by_voltage(11000,750);	//push under goal
+	// 	wings.set_value(LOW);
+	// 	drive_by_voltage(-9000,500);	//get out of the way, make sure we're not contacting any triballs
 
 	} else if (auton_picker = 2) //shove ball under
 	{	
@@ -621,7 +649,7 @@ void opcontrol()
 		{ // function to toggle catapult forward when R2 is pressed
 			if (!toggle_catapult)
 			{
-				catapult.move_velocity(190);
+				catapult.move_velocity(200);
 				toggle_catapult = true;
 			}
 			else if (toggle_catapult)
