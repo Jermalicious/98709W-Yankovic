@@ -12,12 +12,12 @@ pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 // define miscellaneous motors, pneumatics, and tracking wheels
 pros::Motor left_catapult(5, false);			// Left cata motor
-pros::Motor right_catapult(20, true);			// Right cata motor
+pros::Motor right_catapult(19, true);			// Right cata motor
 pros::ADIDigitalOut wings(1, LOW);			// Pneumatics to extend the pusher wings
 
 pros::Rotation tracking_wheel_horizontal(1, false);
 pros::Rotation tracking_wheel_vertical(15, false);
-pros::Imu inertial_sensor(19);
+pros::Imu inertial_sensor(16);
 pros::Rotation flywheel_sensor(7, true);
 
 // define drivetrain motors
@@ -361,13 +361,13 @@ void driveTo(float target_x, float target_y, float settle_time_msec, float settl
 
 
 		// controller.clear();
-		controller.print(0,0,"error_dist: %f", error_distance);
-		controller.print(1,0,"error_angle: %f", error_angle);
+		// controller.print(0,0,"error_dist: %f", error_distance);
+		// controller.print(1,0,"error_angle: %f", error_angle);
 
-		pros::lcd::print(2,"error_distance: %f", error_distance);
-		pros::lcd::print(3,"error_angle: %f", error_angle);
-		pros::lcd::print(4,"timer: %d", timer);
-		pros::lcd::print(5,"relative_angle: %f", relative_angle);
+		pros::lcd::print(3,"error_distance: %f", error_distance);
+		pros::lcd::print(4,"error_angle: %f", error_angle);
+		pros::lcd::print(5,"timer: %d", timer);
+		// pros::lcd::print(5,"relative_angle: %f", relative_angle);
 		// pros::lcd::print(5,"loop?: %d", timer < timeout_msec && settle_timer < settle_time_msec);
 		// pros::lcd::print(6,"timeout active?: %d", timer < timeout_msec);
 		// pros::lcd::print(7,"settle active?: %d", settle_timer < settle_time_msec);
@@ -413,8 +413,8 @@ void initialize()
 {
 	pros::lcd::initialize();
 	// pros::lcd::set_text(1, "Hello PROS User!");
-	pros::lcd::set_text(7, "Shove Under  Skills     Clear ML");
-	pros::lcd::set_text(6, "Defense-Side Winpoint");
+	pros::lcd::set_text(7, "Shove Under  under win  Clear ML");
+	pros::lcd::set_text(6, "Skills");
 
 	pros::lcd::register_btn0_cb(on_left_button);
 	pros::lcd::register_btn1_cb(on_center_button);
@@ -465,7 +465,7 @@ void autonomous()
 		pros::delay(20);
 	}
 
-	if(auton_picker == 0) //Under Winpoint
+	if(auton_picker == 1) //Under Winpoint
 	{
 		starting_angle = -135;
 		starting_x = 24;
@@ -499,11 +499,11 @@ void autonomous()
 
 	//Touch elevation bar
 
-	} else if (auton_picker == 1) //skiills
+	} else if (auton_picker == 0) //skiills
 	{
 		starting_angle = -135;
-		starting_x = 14;	//24
-		starting_y = 7;	//0
+		starting_x = 13;	//24
+		starting_y = 6;	//0
 
 	//push preloads under the goal
 		// turnTo(-40);
@@ -518,18 +518,30 @@ void autonomous()
 		// intake = 0;
 		turnTo(-120);		//turn toward target
 		// drive_by_voltage(-4500,500);
-		catapult.move_relative(1800 * 4, 190); //1800 encoder ticks per revolution, and 46 revolutions
+
+		// catapult.move_velocity(200); //1800 encoder ticks per revolution, and 46 revolutions
+		// left_catapult.tare_position();
+		// while (left_catapult.get_position() < 1800 * 4)
+		{
+			pros::delay(20);
+		}
+		pros::delay(200);
+		catapult.brake();
+		drive_by_voltage(4000,300);
+		pros::delay(100);
+		inertial_sensor.set_rotation(0);
+		pros::delay(400);
 
 	//drive to first push
-		driveTo(24,9,20,5);	//drive to entrance of the hallway
-		driveTo(96,10,20,5);	//drive to other side through the hallway
+		driveTo(36,6,20,5);	//drive to entrance of the hallway
+		driveTo(96,6,20,5);	//drive to other side through the hallway
 		driveTo(116,31);
 		turnTo(0);
 		
 	//push triballs under goal
 		wings.set_value(HIGH);	//extend wings for the push
 		pros::delay(400);	//wait for wings to deploy
-		drive_by_voltage(11000,750);	//push under goal
+		drive_by_voltage(11000,600);	//push under goal
 		wings.set_value(LOW);
 		drive_by_voltage(-7000,500);
 
@@ -540,7 +552,7 @@ void autonomous()
 		turnTo(60);
 		wings.set_value(HIGH);	//extend wings for the push
 		pros::delay(400);	//wait for wings to deploy
-		drive_by_voltage(11000,750);	//push under goal
+		drive_by_voltage(11000,600);	//push under goal
 		wings.set_value(LOW);
 		drive_by_voltage(-9000,500);	//get out of the way, make sure we're not contacting any triballs
 
@@ -548,10 +560,10 @@ void autonomous()
 		driveTo(81,97);
 
 	//thrid push
-		turnTo(160);
+		turnTo(135);
 		wings.set_value(HIGH);	//extend wings for the push
 		pros::delay(400);	//wait for wings to deploy
-		drive_by_voltage(11000,750);	//push under goal
+		drive_by_voltage(11000,600);	//push under goal
 		wings.set_value(LOW);
 		drive_by_voltage(-9000,500);	//get out of the way, make sure we're not contacting any triballs
 
@@ -562,7 +574,7 @@ void autonomous()
 		turnTo(180);
 		wings.set_value(HIGH);	//extend wings for the push
 		pros::delay(400);		//wait for wings to deploy
-		drive_by_voltage(11000,750);	//push under goal
+		drive_by_voltage(11000,600);	//push under goal
 		wings.set_value(LOW);
 		drive_by_voltage(-9000,500);	//get out of the way, make sure we're not contacting any triballss
 
@@ -610,8 +622,12 @@ void autonomous()
 
 void opcontrol()
 {
-	starting_x = 0;
-	starting_y = 0;
+	// starting_x = 0;
+	// starting_y = 0;
+
+		starting_angle = -135;
+		starting_x = 13;	//24
+		starting_y = 7;	//0
 
 	float drive_forward;
 	float drive_turn;
@@ -717,7 +733,6 @@ void turnTo(float target, float settle_time_msec, float kI_start_at_error_value,
 		left_drivetrain.move_voltage(output); // output needs to be -12000 to 12000 milivolts
 		right_drivetrain.move_voltage(-output);
 		pros::lcd::print(4,"settle_timer: %d", settle_timer);
-		pros::lcd::print(2,"integral: %f", integral);
 		pros::lcd::print(3,"output: %d", output);
 		if (abs(error) < settle_distance) // absolute value so it never goes negative
 		{
