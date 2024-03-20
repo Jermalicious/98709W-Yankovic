@@ -14,6 +14,7 @@ pros::Controller controller(pros::E_CONTROLLER_MASTER);
 pros::Motor left_catapult(5, false);			// Left cata motor
 pros::Motor right_catapult(19, true);			// Right cata motor
 pros::ADIDigitalOut wings(1, LOW);			// Pneumatics to extend the pusher wings
+pros::ADIDigitalOut hanger(2,LOW);
 
 pros::Rotation tracking_wheel_horizontal(1, false);
 pros::Rotation tracking_wheel_vertical(15, false);
@@ -60,6 +61,9 @@ const double driveTo_turn_kD = 300; //600
 float starting_angle = 0; //angle of robot at start of auton, matters if we start at an odd angle but want to give field-relative instructions
 float starting_x;
 float starting_y;
+
+float d0x = 0; //previous robot position
+float d0y = 0; //previous robot position
 
 bool toggle_catapult = false;
 int auton_picker = 0;
@@ -148,8 +152,6 @@ void odometry()
 
 	float θm; //average orientation used for converting to field coordinates
 
-	float d0x = 0; //previous robot position
-	float d0y = 0; //previous robot position
 	float θ0;      //previous robot angle
 	float prev_tracking_wheel_horizontal;
 	float prev_tracking_wheel_vertical;
@@ -246,7 +248,7 @@ void odometry()
 		
 
 		odom_counter++;
-		pros::delay(15);
+		pros::delay(20);
 	}
 }
 
@@ -270,8 +272,8 @@ void driveTo(float target_x, float target_y, float settle_time_msec, float settl
 	int timer = 0;
 	int settle_timer = 0;
 
-	int distance_voltage_cap = 8000;
-	int angle_voltage_cap = 5000;
+	int distance_voltage_cap = 7000;
+	int angle_voltage_cap = 4500;
 	float heading_correction_factor;
 
 	if (timeout_msec = -1) // this sets the default timeout_msec based on the error, which we couldn't calculate in the parameters field, so we do it here instead
@@ -503,94 +505,87 @@ void autonomous()
 	{
 		starting_angle = -135;
 		starting_x = 13;	//24
-		starting_y = 6;	//0
+		starting_y = 3;	//0
 
-	//push preloads under the goal
-		// turnTo(-40);
-		// driveTo(4,28); 	//move to goal
-		// intake = -95;
-		// turnTo(0);		//orient toward goal
-		// drive_by_voltage(11000,700);	//push under the goal
-
-	//drive to launch zone
-		// flywheel_motor.move_voltage(10650);	//spin up the flywheel
-		// driveTo(6,25);	//go to the LZ
-		// intake = 0;
-		turnTo(-120);		//turn toward target
+		turnTo(-115);		//turn toward target
 		// drive_by_voltage(-4500,500);
 
-		// catapult.move_velocity(200); //1800 encoder ticks per revolution, and 46 revolutions
-		// left_catapult.tare_position();
-		// while (left_catapult.get_position() < 1800 * 4)
+		catapult.move_voltage(11500);
+		left_catapult.tare_position();
+		while (left_catapult.get_position() < 1800 * 48) //1800 encoder ticks per revolution, and 46 revolutions
 		{
+			catapult.move_voltage(11500);
 			pros::delay(20);
 		}
-		pros::delay(200);
+		pros::delay(150); 
 		catapult.brake();
-		drive_by_voltage(4000,300);
-		pros::delay(100);
+		drive_by_voltage(4000,600);
+		pros::delay(750);
 		inertial_sensor.set_rotation(0);
-		pros::delay(400);
+		pros::delay(800);
+
+		turnTo(90);
+		drive_by_voltage(4000,600);
+		turnTo(0);
+		drive_by_voltage(-4000,750);
+		starting_y = 0;
+		d0y = 0;
+		robot_positiony = 0;
+		pros::delay(300);
+		starting_angle = 0;
+		inertial_sensor.set_rotation(0);
+		pros::delay(750);
+
+
+
 
 	//drive to first push
-		driveTo(36,6,20,5);	//drive to entrance of the hallway
-		driveTo(96,6,20,5);	//drive to other side through the hallway
-		driveTo(116,31);
+		driveTo(34,6,20,5);	//drive to entrance of the hallway
+		driveTo(96,9,20,5);	//drive to other side through the hallway
+		driveTo(117,31);
 		turnTo(0);
 		
 	//push triballs under goal
-		wings.set_value(HIGH);	//extend wings for the push
+		// wings.set_value(HIGH);	//extend wings for the push
 		pros::delay(400);	//wait for wings to deploy
 		drive_by_voltage(11000,600);	//push under goal
-		wings.set_value(LOW);
+		// wings.set_value(LOW);
 		drive_by_voltage(-7000,500);
 
 	//drive to second push
-		driveTo(83,45);
+		driveTo(78,47);
 
 	//second push
 		turnTo(60);
-		wings.set_value(HIGH);	//extend wings for the push
-		pros::delay(400);	//wait for wings to deploy
+		// wings.set_value(HIGH);	//extend wings for the push
+		// pros::delay(400);	//wait for wings to deploy
 		drive_by_voltage(11000,600);	//push under goal
-		wings.set_value(LOW);
-		drive_by_voltage(-9000,500);	//get out of the way, make sure we're not contacting any triballs
+		// wings.set_value(LOW);
+		drive_by_voltage(-9000,700);	//get out of the way, make sure we're not contacting any triballs
 
 	//drive to third push
-		driveTo(81,97);
+		driveTo(72,47,20,5);
+		driveTo(72,92);
 
 	//thrid push
-		turnTo(135);
+		turnTo(110);
 		wings.set_value(HIGH);	//extend wings for the push
 		pros::delay(400);	//wait for wings to deploy
-		drive_by_voltage(11000,600);	//push under goal
+		drive_by_voltage(11000,700);	//push under goal
 		wings.set_value(LOW);
 		drive_by_voltage(-9000,500);	//get out of the way, make sure we're not contacting any triballs
 
 	//drive to fourth push
-		driveTo(128,116);
+	// 	driveTo(128,116);
 
-	//fourth push
-		turnTo(180);
-		wings.set_value(HIGH);	//extend wings for the push
-		pros::delay(400);		//wait for wings to deploy
-		drive_by_voltage(11000,600);	//push under goal
-		wings.set_value(LOW);
-		drive_by_voltage(-9000,500);	//get out of the way, make sure we're not contacting any triballss
-
-
-
-	//drive to third push
-	// 	driveTo(95,35,20,5);
-	// 	driveTo(73,68);	//drive to a point in front of the goal
-	// 	turnTo(90);	//turn toward goal
-
-	// //push triablls under goal
+	// //fourth push
+	// 	turnTo(180);
 	// 	wings.set_value(HIGH);	//extend wings for the push
-	// 	pros::delay(400);	//wait for wings to deploy
-	// 	drive_by_voltage(11000,750);	//push under goal
+	// 	pros::delay(400);		//wait for wings to deploy
+	// 	drive_by_voltage(11000,600);	//push under goal
 	// 	wings.set_value(LOW);
-	// 	drive_by_voltage(-9000,500);	//get out of the way, make sure we're not contacting any triballs
+	// 	drive_by_voltage(-9000,500);	//get out of the way, make sure we're not contacting any triballss
+
 
 	} else if (auton_picker = 2) //shove ball under
 	{	
@@ -660,6 +655,7 @@ void opcontrol()
 			wings.set_value(LOW);
 		}
 
+
 		// turns catapult on and off
 		if (controller.get_digital_new_press(DIGITAL_R2))
 		{ // function to toggle catapult forward when R2 is pressed
@@ -686,6 +682,15 @@ void opcontrol()
 
 		left_drivetrain = left_drive_speed;
 		right_drivetrain = right_drive_speed;
+
+		if (abs(left_drive_speed) < 5)
+		{
+			left_drivetrain.brake();
+		}
+		if (abs(right_drive_speed) < 5)
+		{
+			right_drivetrain.brake();
+		}
 
 		// loopRate.delay(okapi::QFrequency(50.0)); //breaks stuff in tasks. Avoid. // basically a perfectly even 20 ms between starts of each iteration
 		pros::delay(20);
